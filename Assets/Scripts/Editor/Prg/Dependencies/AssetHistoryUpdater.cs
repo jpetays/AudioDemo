@@ -108,7 +108,8 @@ namespace Editor.Prg.Dependencies
         private static readonly Encoding Encoding = PlatformUtil.Encoding;
 
         // Save day number separately for each project with different name.
-        private static string DayNumberName => $"{DayNumberNamePrefix}.{new DirectoryInfo(Directory.GetCurrentDirectory()).Name}";
+        private static string DayNumberName =>
+            $"{DayNumberNamePrefix}.{new DirectoryInfo(Directory.GetCurrentDirectory()).Name}";
 
         [InitializeOnLoadMethod]
         private static void InitializeOnLoadMethod()
@@ -136,6 +137,7 @@ namespace Editor.Prg.Dependencies
             UpdateAssetHistory();
             state.DayNumber = dayOfYear;
             state.Save();
+            CheckPlayModeSettings();
         }
 
         public static void ForceUpdateAssetHistory()
@@ -148,6 +150,35 @@ namespace Editor.Prg.Dependencies
             UpdateAssetHistory();
             state.DayNumber = dayOfYear;
             state.Save();
+            CheckPlayModeSettings();
+        }
+
+        private static void CheckPlayModeSettings()
+        {
+            // Our recommended settings for "Enable Play Mode Options" is:
+            // - do not DisableDomainReload
+            // - do not DisableSceneReload
+            if (!EditorSettings.enterPlayModeOptionsEnabled)
+            {
+                Debug.Log(
+                    $"{RichText.Yellow("EditorSettings.enterPlayModeOptionsEnabled")}={EditorSettings.enterPlayModeOptionsEnabled}");
+                return;
+            }
+
+            var enableDomainReload =
+                (EditorSettings.enterPlayModeOptions & EnterPlayModeOptions.DisableDomainReload) !=
+                EnterPlayModeOptions.DisableDomainReload;
+            var enableSceneReload =
+                (EditorSettings.enterPlayModeOptions & EnterPlayModeOptions.DisableSceneReload) !=
+                EnterPlayModeOptions.DisableSceneReload;
+
+            if (!enableDomainReload && !enableSceneReload)
+            {
+                return;
+            }
+            Debug.Log(RichText.Yellow("EditorSettings.enterPlayModeOptions"));
+            Debug.Log($"{RichText.Yellow("DomainReload")}={enableDomainReload}");
+            Debug.Log($"{RichText.Yellow("SceneReload")}={enableSceneReload}");
         }
 
         private static void UpdateAssetHistory()
