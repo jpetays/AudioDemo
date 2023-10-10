@@ -1,0 +1,18 @@
+{
+    "name": "PrgEditor.AssemblyDefinition",
+    "rootNamespace": "",
+    "references": [
+        "GUID:d9834ffcacd2def4eb978252ec1b752f"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
