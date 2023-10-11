@@ -21,11 +21,6 @@ namespace Demo.Audio
             Assert.IsNotNull(_masterSlider);
         }
 
-        public void RemoveAllListeners()
-        {
-            _masterSlider.RemoveAllListeners();
-        }
-
         public void ResetView()
         {
             _masterSlider.ResetComponent();

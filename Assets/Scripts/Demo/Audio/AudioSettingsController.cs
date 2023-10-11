@@ -14,7 +14,6 @@ namespace Demo.Audio
 
         private void OnEnable()
         {
-            _view.RemoveAllListeners();
             _view.ResetView();
         }
     }

@@ -34,6 +34,9 @@ namespace Demo.Audio
         public static AudioSettings Get() => Resources.Load<AudioSettings>(nameof(AudioSettings));
 
         public List<AudioChannelSetting> Settings;
+
+        public AudioChannelSetting GetAudioChannelSettingBy(VolumeNames volumeName) =>
+            Settings.Find(x => x._exposedVolumeName.Equals(volumeName));
     }
 
     /// <summary>
@@ -48,5 +51,19 @@ namespace Demo.Audio
         public VolumeNames _exposedVolumeName;
 
         public string ExposedVolumeName => _exposedVolumeName.ToString();
+
+        private string PlayerPrefsName(string category, string name) => $"settings.audio.{category}.{name}";
+
+        public void LoadState(out float sliderValue, out bool isMuted)
+        {
+            sliderValue = PlayerPrefs.GetFloat(PlayerPrefsName("volume", ExposedVolumeName), 0);
+            isMuted = PlayerPrefs.GetInt(PlayerPrefsName("mute", ExposedVolumeName), 0) != 0;
+        }
+
+        public void SaveState(float sliderValue, bool isMuted)
+        {
+            PlayerPrefs.SetFloat(PlayerPrefsName("volume", ExposedVolumeName), sliderValue);
+            PlayerPrefs.SetInt(PlayerPrefsName("mute", ExposedVolumeName), isMuted ? 1 : 0);
+        }
     }
 }
