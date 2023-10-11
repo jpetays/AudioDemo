@@ -27,7 +27,7 @@ namespace Demo.Audio
     /// </summary>
     /// <remarks>
     /// This is just a list of available <c>AudioSetting</c>s
-    /// so that we can manage given <c>AudioMixerGroup</c> at runtime.
+    /// so that we can manage given <c>AudioMixerGroup</c> at runtime byt its 'exposed parameter name'.
     /// </remarks>
     [CreateAssetMenu(menuName = "Prg/" + nameof(AudioSettings), fileName = nameof(AudioSettings))]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -73,6 +73,10 @@ namespace Demo.Audio
     /// <c>AudioSetting</c> for single audio channel that is played trough <c>AudioMixer</c>
     /// using given <c>AudioMixerGroup</c> during the game.
     /// </summary>
+    /// <remarks>
+    /// We save volume (Audio Mixer attenuation) as a normalized value between 0.0 .. 1.0 (inclusive) and channel mute state.<br />
+    /// Conversion to Audio Mixer decibel value is done using 'standard' UNITY formula: Mathf.Log10(<i>normalizedValue</i>) * 20f.
+    /// </remarks>
     [Serializable]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class AudioChannelSetting
@@ -163,12 +167,12 @@ namespace Demo.Audio
                     // that we want the slider to travel from min to max.
                     return Mathf.Log10(normalizedValue) * 20f;
                 }
-                Assert.IsFalse(!(normalizedValue > MixerMaxValue),
-                    $"normalizedValue is out of range: {normalizedValue:0.0}");
+                Assert.IsFalse(normalizedValue > 1f,
+                    $"normalizedValue is out of range (0-1): {normalizedValue:0.0}");
                 return MixerMaxValue;
             }
-            Assert.IsFalse(!(normalizedValue < MixerMaxValue),
-                $"normalizedValue is out of range: {normalizedValue:0.0}");
+            Assert.IsFalse(normalizedValue < 0,
+                $"normalizedValue is out of range (0-1): {normalizedValue:0.0}");
             return MixerMinValue;
         }
     }
