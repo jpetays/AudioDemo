@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f4b57a021d60bc4ab545fa1d0fe92d7, type: 3}
-  m_Name: Main WIndow
+  m_Script: {fileID: 11500000, guid: dbb379bf12b048d78b36f474068cd00d, type: 3}
+  m_Name: AudioSettings
   m_EditorClassIdentifier: 
-  _windowPrefab: {fileID: 1293415225055723741, guid: dbcc3fc9bbef13d4a816d49db25a2f49, type: 3}
-  _isPopOutWindow: 0
-  _scene: {fileID: 11400000, guid: 089915dd6359631418c9f347574ebc31, type: 2}
+  Settings:
+  - AudioMixerGroup: {fileID: 24300002, guid: 408344990a0092f41b8512aae34f41b5, type: 2}
+    ExposedVolumeName: 0

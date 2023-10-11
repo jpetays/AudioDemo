@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f4b57a021d60bc4ab545fa1d0fe92d7, type: 3}
   m_Name: Audio Settings
   m_EditorClassIdentifier: 
-  _windowPrefab: {fileID: 5343675429252374264, guid: 201b2a44dcdf75f49a449bceccab9a8d, type: 3}
+  _windowPrefab: {fileID: 8775068692229398017, guid: 24fa02b32592dcc47b84e8d037d0e2b1, type: 3}
   _isPopOutWindow: 0
   _scene: {fileID: 0}
