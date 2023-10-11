@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using UnityEngine.Audio;
+using Debug = Prg.Debug;
 
 namespace Demo.Audio
 {
@@ -47,6 +48,9 @@ namespace Demo.Audio
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class AudioChannelSetting
     {
+        private const float MixerMaxValue = 0;
+        private const float MixerMinValue = -80f;
+
         [Header("Settings")] public AudioMixerGroup AudioMixerGroup;
         public VolumeNames _exposedVolumeName;
 
@@ -64,6 +68,64 @@ namespace Demo.Audio
         {
             PlayerPrefs.SetFloat(PlayerPrefsName("volume", ExposedVolumeName), sliderValue);
             PlayerPrefs.SetInt(PlayerPrefsName("mute", ExposedVolumeName), isMuted ? 1 : 0);
+        }
+
+        public float UpdateChannel(float normalizedValue, bool isMuted)
+        {
+            var decibelValue = ConvertToDecibelUnity(normalizedValue);
+            if (isMuted)
+            {
+                if (AudioMixerGetFloat() > MixerMinValue)
+                {
+                    AudioMixerSetFloat(MixerMinValue);
+                }
+            }
+            else
+            {
+                AudioMixerSetFloat(decibelValue);
+            }
+            return decibelValue;
+        }
+
+        private void AudioMixerSetFloat(float mixerValueDb)
+        {
+            if (mixerValueDb is < MixerMinValue or > MixerMaxValue)
+            {
+                Debug.Log($"Volume for '{ExposedVolumeName}' is out of range: {mixerValueDb:0.0}");
+                mixerValueDb = Mathf.Clamp(mixerValueDb, MixerMinValue, MixerMaxValue);
+            }
+            if (AudioMixerGroup.audioMixer.SetFloat(ExposedVolumeName, mixerValueDb))
+            {
+                return;
+            }
+            Debug.Log($"AudioMixer parameter {ExposedVolumeName} not found", AudioMixerGroup.audioMixer);
+            throw new UnityException($"AudioMixer parameter {ExposedVolumeName} not found");
+        }
+
+        private float AudioMixerGetFloat()
+        {
+            if (AudioMixerGroup.audioMixer.GetFloat(ExposedVolumeName, out var mixerValue))
+            {
+                return mixerValue;
+            }
+            Debug.Log($"AudioMixer parameter {ExposedVolumeName} not found", AudioMixerGroup.audioMixer);
+            throw new UnityException($"AudioMixer parameter {ExposedVolumeName} not found");
+        }
+
+        public static float ConvertToDecibelUnity(float normalizedValue)
+        {
+            if (normalizedValue > 0)
+            {
+                if (normalizedValue < 1f)
+                {
+                    // Mathf.Log10 returns values between -4.0 ... 0.0 and
+                    // multiplying this by 20.0 we got a range of -80.0 ... 0.0 decibels
+                    // that we want the slider to travel from min to max.
+                    return Mathf.Log10(normalizedValue) * 20f;
+                }
+                return MixerMaxValue;
+            }
+            return MixerMinValue;
         }
     }
 }

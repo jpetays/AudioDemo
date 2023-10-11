@@ -56,7 +56,7 @@ namespace Demo.Audio
             UpdateMuteButtonCaption();
             _slider.value = _sliderValue;
             // Must update slide manually for UI.
-            OnSliderValueChanged(_sliderValue);
+            OnSliderValueChanged(_slider.value);
         }
 
         private void OnDisable()
@@ -81,65 +81,16 @@ namespace Demo.Audio
         {
             _isMuted = !_isMuted;
             UpdateMuteButtonCaption();
-            OnSliderValueChanged(_sliderValue);
+            OnSliderValueChanged(_slider.value);
         }
 
         private void OnSliderValueChanged(float sliderValue)
         {
-            _volumeDbValue = SliderToDecibelUnity(_slider.normalizedValue);
+            _sliderValue = _slider.value;
+            _volumeDbValue = _audioChannel.UpdateChannel(_slider.normalizedValue, _isMuted);
             _sliderText.text =
-                $"{_sliderTitle}: {sliderValue:0} ({_slider.normalizedValue:0.00} ~ {_volumeDbValue:0.00} dB)";
-            if (_isMuted)
-            {
-                if (AudioMixerGetFloat() > MixerMinValue)
-                {
-                    AudioMixerSetFloat(MixerMinValue);
-                }
-                return;
-            }
-            AudioMixerSetFloat(_volumeDbValue);
-        }
-
-        private void AudioMixerSetFloat(float mixerValueDb)
-        {
-            if (mixerValueDb is < MixerMinValue or > MixerMaxValue)
-            {
-                Debug.Log($"Volume for '{_exposedVolumeName}' is out of range: {mixerValueDb:0.0}");
-                mixerValueDb = Mathf.Clamp(mixerValueDb, MixerMinValue, MixerMaxValue);
-            }
-            Debug.Log($"{_exposedVolume} <- {mixerValueDb} dB ({_sliderValue:0} ~ {_slider.normalizedValue:0.00})", this);
-            if (_audioMixer.SetFloat(_exposedVolumeName, mixerValueDb))
-            {
-                return;
-            }
-            Debug.Log($"AudioMixer parameter {_exposedVolumeName} not found", _audioChannel.AudioMixerGroup);
-            throw new UnityException($"AudioMixer parameter {_exposedVolumeName} not found");
-        }
-
-        private float AudioMixerGetFloat()
-        {
-            if (_audioMixer.GetFloat(_exposedVolumeName, out var mixerValue))
-            {
-                return mixerValue;
-            }
-            Debug.Log($"AudioMixer parameter {_exposedVolumeName} not found", _audioChannel.AudioMixerGroup);
-            throw new UnityException($"AudioMixer parameter {_exposedVolumeName} not found");
-        }
-
-        public static float SliderToDecibelUnity(float normalizedValue)
-        {
-            if (normalizedValue > 0)
-            {
-                if (normalizedValue < 1f)
-                {
-                    // Mathf.Log10 returns values between -4.0 ... 0.0 and
-                    // multiplying this by 20.0 we got a range of -80.0 ... 0.0 decibels
-                    // that we want the slider to travel from min to max.
-                    return Mathf.Log10(normalizedValue) * 20f;
-                }
-                return MixerMaxValue;
-            }
-            return MixerMinValue;
+                $"{_sliderTitle}: {sliderValue:0} ({_slider.normalizedValue:0.00}) ~ {_volumeDbValue:0.00} dB";
+            Debug.Log(_sliderText.text);
         }
     }
 }
