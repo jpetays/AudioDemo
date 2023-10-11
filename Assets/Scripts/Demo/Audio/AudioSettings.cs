@@ -112,13 +112,23 @@ namespace Demo.Audio
             throw new UnityException($"AudioMixer parameter {ExposedVolumeName} not found");
         }
 
+        /// <summary>
+        /// Converts liner value to logarithmic decibel value.
+        /// </summary>
+        /// <remarks>
+        /// This formula attenuates volume approximately -6 dB when slider travels to 50.<br />
+        /// Generally approved volume attenuation is about -10 dB when sound is perceived to be half of its previous value.<br />
+        /// <i>Better formula could have volume approximately -10 dB when slider travels to 50</i>.
+        /// </remarks>
+        /// <param name="normalizedValue"></param>
+        /// <returns></returns>
         public static float ConvertToDecibelUnity(float normalizedValue)
         {
             if (normalizedValue > 0)
             {
                 if (normalizedValue < 1f)
                 {
-                    // Mathf.Log10 returns values between -4.0 ... 0.0 and
+                    // Mathf.Log10 returns values between -4.0 ... 0.0 (for 0.0001 .. 1.0) and
                     // multiplying this by 20.0 we got a range of -80.0 ... 0.0 decibels
                     // that we want the slider to travel from min to max.
                     return Mathf.Log10(normalizedValue) * 20f;
