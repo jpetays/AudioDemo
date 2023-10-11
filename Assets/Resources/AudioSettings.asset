@@ -14,4 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Settings:
   - AudioMixerGroup: {fileID: 24300002, guid: 408344990a0092f41b8512aae34f41b5, type: 2}
-    ExposedVolumeName: 0
+    _exposedVolumeName: 0
+  - AudioMixerGroup: {fileID: -5906306341481136041, guid: 408344990a0092f41b8512aae34f41b5, type: 2}
+    _exposedVolumeName: 1
+  - AudioMixerGroup: {fileID: -1805322883835451013, guid: 408344990a0092f41b8512aae34f41b5, type: 2}
+    _exposedVolumeName: 2
+  - AudioMixerGroup: {fileID: 7180150845217764719, guid: 408344990a0092f41b8512aae34f41b5, type: 2}
+    _exposedVolumeName: 3

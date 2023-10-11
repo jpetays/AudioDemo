@@ -23,22 +23,29 @@ namespace Demo.Audio
         [SerializeField] private bool _isWholeNumbers;
         [SerializeField] private Button _muteButton;
 
+        [SerializeField, Header("Debug")] private bool _isDebugLog;
+
         [SerializeField, Header("Live Data")] private float _sliderValue;
         [SerializeField] private float _volumeDbValue;
         [SerializeField] private bool _isMuted;
         [SerializeField] private string _exposedVolumeName;
         [SerializeField] private AudioMixer _audioMixer;
         [SerializeField] private AudioChannelSetting _audioChannel;
+        [SerializeField] private bool _hasMuteButton;
 
         private void Awake()
         {
-            _muteButton.onClick.AddListener(OnMuteButtonClicked);
+            _hasMuteButton = _muteButton != null;
+            if (_hasMuteButton)
+            {
+                _muteButton.onClick.AddListener(OnMuteButtonClicked);
+            }
             _slider.onValueChanged.AddListener(OnSliderValueChanged);
         }
 
         private void OnEnable()
         {
-            Debug.Log($"{_exposedVolume}", this);
+            if (_isDebugLog) Debug.Log($"{_exposedVolume}", this);
             var audioSettings = AudioSettings.Get();
             _audioChannel = audioSettings.GetAudioChannelSettingBy(_exposedVolume);
             Assert.IsNotNull(_audioChannel, $"AudioChannelSetting not found for: {_exposedVolume}");
@@ -74,6 +81,10 @@ namespace Demo.Audio
 
         private void UpdateMuteButtonCaption()
         {
+            if (!_hasMuteButton)
+            {
+                return;
+            }
             _muteButton.SetCaption(_isMuted ? "Activate" : "Mute");
         }
 
@@ -90,7 +101,7 @@ namespace Demo.Audio
             _volumeDbValue = _audioChannel.UpdateChannel(_slider.normalizedValue, _isMuted);
             _sliderText.text =
                 $"{_sliderTitle}: {sliderValue:0} ({_slider.normalizedValue:0.00}) ~ {_volumeDbValue:0.00} dB";
-            Debug.Log(_sliderText.text);
+            if (_isDebugLog) Debug.Log(_sliderText.text);
         }
     }
 }
