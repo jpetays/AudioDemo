@@ -33,6 +33,8 @@ namespace Demo.Audio
         [SerializeField] private AudioChannelSetting _audioChannel;
         [SerializeField] private bool _hasMuteButton;
 
+        protected bool IsSliderReady;
+
         protected virtual void Awake()
         {
             _hasMuteButton = _muteButton != null;
@@ -61,13 +63,18 @@ namespace Demo.Audio
             // Show component state.
             _audioChannel.LoadState(out _sliderValue, out _isMuted);
             UpdateMuteButtonCaption();
+            // Note that if both _slider.value and _sliderValue are 0, OnSliderValueChanged is not triggered!
             _slider.value = _sliderValue;
+            OnSliderStateChanged();
+            // Mark slider ready after initialization is done.
+            IsSliderReady = true;
         }
 
         private void OnDisable()
         {
             // Save component state.
             _audioChannel.SaveState(_sliderValue, _isMuted);
+            IsSliderReady = false;
         }
 
         public void ResetComponent()
@@ -93,12 +100,17 @@ namespace Demo.Audio
             OnSliderValueChanged(_slider.value);
         }
 
-        protected virtual void OnSliderValueChanged(float sliderValue)
+        private void OnSliderValueChanged(float sliderValue)
         {
             _sliderValue = _slider.value;
+            OnSliderStateChanged();
+        }
+
+        protected virtual void OnSliderStateChanged()
+        {
             _volumeDbValue = _audioChannel.UpdateChannel(_slider.normalizedValue, _isMuted);
             _sliderText.text =
-                $"{_sliderTitle}: {sliderValue:0} ({_slider.normalizedValue:0.00}) ~ {_volumeDbValue:0.00} dB";
+                $"{_sliderTitle}: {_sliderValue:0} ({_slider.normalizedValue:0.00}) ~ {_volumeDbValue:0.00} dB";
             if (_isDebugLog) Debug.Log(_sliderText.text);
         }
     }

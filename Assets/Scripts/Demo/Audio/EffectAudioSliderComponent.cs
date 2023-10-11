@@ -5,7 +5,7 @@ using UnityEngine.Assertions;
 namespace Demo.Audio
 {
     /// <summary>
-    /// <c>AudioSliderComponent</c> UI component for effects with sample.
+    /// <c>AudioSliderComponent</c> UI component for effects with audio sample.
     /// </summary>
     /// <remarks>
     /// Plays given audio sample effect when slider value is changed.
@@ -16,7 +16,6 @@ namespace Demo.Audio
         [SerializeField, Header("Sample Effect")] private AudioSource _sampleEffect;
         [SerializeField, Min(0)] private float _playGracePeriod = 0.2f;
 
-        private bool _isPlaySample;
         private float _lastPlayTime;
         private Coroutine _delayedPlay;
         private YieldInstruction _delayedPlayWait;
@@ -28,13 +27,11 @@ namespace Demo.Audio
             _delayedPlayWait = new WaitForSeconds(_playGracePeriod);
         }
 
-        protected override void OnSliderValueChanged(float sliderValue)
+        protected override void OnSliderStateChanged()
         {
-            base.OnSliderValueChanged(sliderValue);
-            if (!_isPlaySample)
+            base.OnSliderStateChanged();
+            if (!IsSliderReady)
             {
-                // Skip first slider change because it is used to setup the component.
-                _isPlaySample = true;
                 return;
             }
             PlaySampleEffect();
