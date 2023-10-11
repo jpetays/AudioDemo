@@ -8,13 +8,13 @@ using Debug = Prg.Debug;
 
 namespace Demo.Audio
 {
+    /// <summary>
+    /// <c>AudioSliderComponent</c> UI component.
+    /// </summary>
     public class AudioSliderComponent : MonoBehaviour
     {
         private const float SliderMinValue = 0;
-        private const float SliderMaxValue = 100f;
-
-        private const float MixerMaxValue = 0;
-        private const float MixerMinValue = -80f;
+        private const float SliderMaxValue = AudioSettings.SliderMaxValue;
 
         [SerializeField, Header("Settings")] private VolumeNames _exposedVolume;
         [SerializeField] private string _sliderTitle;
@@ -33,7 +33,7 @@ namespace Demo.Audio
         [SerializeField] private AudioChannelSetting _audioChannel;
         [SerializeField] private bool _hasMuteButton;
 
-        private void Awake()
+        protected virtual void Awake()
         {
             _hasMuteButton = _muteButton != null;
             if (_hasMuteButton)
@@ -62,8 +62,6 @@ namespace Demo.Audio
             _audioChannel.LoadState(out _sliderValue, out _isMuted);
             UpdateMuteButtonCaption();
             _slider.value = _sliderValue;
-            // Must update slide manually for UI.
-            OnSliderValueChanged(_slider.value);
         }
 
         private void OnDisable()
@@ -95,7 +93,7 @@ namespace Demo.Audio
             OnSliderValueChanged(_slider.value);
         }
 
-        private void OnSliderValueChanged(float sliderValue)
+        protected virtual void OnSliderValueChanged(float sliderValue)
         {
             _sliderValue = _slider.value;
             _volumeDbValue = _audioChannel.UpdateChannel(_slider.normalizedValue, _isMuted);

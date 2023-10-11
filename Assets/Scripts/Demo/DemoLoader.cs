@@ -1,4 +1,5 @@
 using System.Collections;
+using Prg;
 using UnityEngine;
 using Debug = Prg.Debug;
 
@@ -16,7 +17,9 @@ namespace Demo
 
         private void Start()
         {
-            Debug.Log("Start");
+            Debug.Log($"Loader start {RichText.Yellow($"frame #{Time.frameCount}")}");
+            // Audio needs to be started in Start()!
+            Audio.AudioSettings.Initialize();
         }
     }
 
@@ -35,13 +38,13 @@ namespace Demo
             Debug.Log("BeforeSceneLoad");
             var parent = new GameObject(nameof(DemoLoader));
             var loader = parent.AddComponent<Loader>();
-            loader.StartCoroutine(LoadServicesCoroutine());
+            loader.StartCoroutine(LoadServicesAsync());
         }
-        private static IEnumerator LoadServicesCoroutine()
+        private static IEnumerator LoadServicesAsync()
         {
-            Debug.Log("LoadServicesCoroutine start");
+            Debug.Log($"LoadServicesAsync start {RichText.Yellow($"frame #{Time.frameCount}")}");
             yield return null;
-            Debug.Log("LoadServicesCoroutine exit");
+            Debug.Log("LoadServicesAsync exit");
         }
     }
 }

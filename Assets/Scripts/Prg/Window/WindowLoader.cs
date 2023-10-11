@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
 using Prg.Window.ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -12,18 +13,29 @@ namespace Prg.Window
     public class WindowLoader : MonoBehaviour
     {
         private const string Tooltip1 = "First window to show after scene has been loaded";
-        private const string Tooltip2 = "Automatically find the bottom-most active window (Canvas) in the scene (for testing)";
+
+        private const string Tooltip2 =
+            "Automatically find the bottom-most active window (Canvas) in the scene (for testing)";
 
         [SerializeField, Tooltip(Tooltip1), Header("Window")] private WindowDef _window;
         [SerializeField, Tooltip(Tooltip2), Header("Testing")] private bool _findLastCanvasForEditor;
 
-        private void OnEnable()
+        private IEnumerator Start()
         {
+            if (Time.frameCount < 10)
+            {
+                // Let game startup continue few frames before we start loading first window.
+                while (Time.frameCount < 2)
+                {
+                    yield return null;
+                }
+                Debug.Log($"WindowLoader start {RichText.Yellow($"frame #{Time.frameCount}")}");
+            }
             if (_findLastCanvasForEditor)
             {
                 FindLastCanvasForEditor();
             }
-            Debug.Log($"{_window}", _window);
+            Debug.Log($"WindowLoader load {_window}", _window);
             var windowManager = WindowManager.Get();
             windowManager.SetWindowsParent(gameObject);
             Assert.IsNotNull(_window.WindowPrefab, "_window.WindowPrefab != null");

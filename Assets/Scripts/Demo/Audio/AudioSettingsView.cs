@@ -8,23 +8,30 @@ namespace Demo.Audio
     {
         [SerializeField, Header("Settings")] private TextMeshProUGUI _audioNotification;
         [SerializeField] private AudioSliderComponent _masterSlider;
+        [SerializeField] private AudioSliderComponent _gameEffectsSlider;
+        [SerializeField] private AudioSliderComponent _uiEffectsSlider;
+        [SerializeField] private AudioSliderComponent _musicSlider;
 
         public string AudioNotification
         {
             set => _audioNotification.text = value;
         }
 
-        public AudioSliderComponent MasterSlider => _masterSlider;
-
         private void Awake()
         {
             Assert.IsNotNull(_masterSlider);
+            Assert.IsNotNull(_gameEffectsSlider);
+            Assert.IsNotNull(_uiEffectsSlider);
+            Assert.IsNotNull(_musicSlider);
         }
 
         public void ResetView()
         {
-            _masterSlider.ResetComponent();
             AudioNotification = "Hello"; //string.Empty;
+            _masterSlider.ResetComponent();
+            _gameEffectsSlider.ResetComponent();
+            _uiEffectsSlider.ResetComponent();
+            _musicSlider.ResetComponent();
         }
     }
 }

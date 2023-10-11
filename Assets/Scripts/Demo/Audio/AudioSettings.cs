@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Audio;
 using Debug = Prg.Debug;
 
@@ -32,12 +33,40 @@ namespace Demo.Audio
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class AudioSettings : ScriptableObject
     {
+        public const float SliderMaxValue = 100f;
+        public const float SliderDefaultValue = 100f;
+
         public static AudioSettings Get() => Resources.Load<AudioSettings>(nameof(AudioSettings));
 
         public List<AudioChannelSetting> Settings;
 
         public AudioChannelSetting GetAudioChannelSettingBy(VolumeNames volumeName) =>
             Settings.Find(x => x._exposedVolumeName.Equals(volumeName));
+
+        public static void Initialize()
+        {
+            var audioSettings = Get();
+            foreach (var audioChannel in audioSettings.Settings)
+            {
+                audioChannel.LoadState(out var sliderValue, out var isMuted);
+                var normalizedValue = LinearConversionInRange(0, SliderMaxValue, 0, 1f, sliderValue);
+                var volumeDbValue = audioChannel.UpdateChannel(normalizedValue, isMuted);
+                Debug.Log(
+                    $"{audioChannel.ExposedVolumeName}: {sliderValue:0} ({normalizedValue:0.00}) ~ {volumeDbValue:0.00} dB isMuted {isMuted}");
+            }
+            return;
+
+            float LinearConversionInRange(
+                float originalStart, float originalEnd, // original range
+                float newStart, float newEnd, // desired range
+                float value) // value to convert
+            {
+                // https://stackoverflow.com/questions/4229662/convert-numbers-within-a-range-to-numbers-within-another-range
+                var scale = (newEnd - newStart) / (originalEnd - originalStart);
+                var result = newStart + (value - originalStart) * scale;
+                return result;
+            }
+        }
     }
 
     /// <summary>
@@ -60,7 +89,8 @@ namespace Demo.Audio
 
         public void LoadState(out float sliderValue, out bool isMuted)
         {
-            sliderValue = PlayerPrefs.GetFloat(PlayerPrefsName("volume", ExposedVolumeName), 0);
+            sliderValue = PlayerPrefs.GetFloat(PlayerPrefsName("volume", ExposedVolumeName),
+                AudioSettings.SliderDefaultValue);
             isMuted = PlayerPrefs.GetInt(PlayerPrefsName("mute", ExposedVolumeName), 0) != 0;
         }
 
@@ -133,8 +163,12 @@ namespace Demo.Audio
                     // that we want the slider to travel from min to max.
                     return Mathf.Log10(normalizedValue) * 20f;
                 }
+                Assert.IsFalse(!(normalizedValue > MixerMaxValue),
+                    $"normalizedValue is out of range: {normalizedValue:0.0}");
                 return MixerMaxValue;
             }
+            Assert.IsFalse(!(normalizedValue < MixerMaxValue),
+                $"normalizedValue is out of range: {normalizedValue:0.0}");
             return MixerMinValue;
         }
     }
