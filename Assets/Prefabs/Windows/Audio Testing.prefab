@@ -414,8 +414,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 211f8babe17c16345ac876ce54f2e84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _isInterruptable: 0
   _button: {fileID: 0}
   _audioSources: []
+  _canInterrupt: 0
   _maxPlayTime: 0
 --- !u!1 &5005649038591668532
 GameObject:
@@ -1226,8 +1228,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 211f8babe17c16345ac876ce54f2e84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _isInterruptable: 0
   _button: {fileID: 0}
   _audioSources: []
+  _canInterrupt: 0
   _maxPlayTime: 0
 --- !u!1 &8939109321911119007
 GameObject:
@@ -1461,8 +1465,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 211f8babe17c16345ac876ce54f2e84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _isInterruptable: 1
   _button: {fileID: 0}
   _audioSources: []
+  _canInterrupt: 0
   _maxPlayTime: 0
 --- !u!1001 &938005836523752480
 PrefabInstance:
