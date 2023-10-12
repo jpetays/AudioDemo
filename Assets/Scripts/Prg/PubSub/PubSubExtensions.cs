@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
@@ -10,13 +12,25 @@ namespace Prg.PubSub
     /// Simple Publish Subscribe Pattern using Extension Methods to delegate work to actual implementation.
     /// </summary>
     /// <remarks>
-    /// This implementation supports UNITY <c>Object</c> in addition to normal C# <c>object</c>.
+    /// This implementation supports UNITY <c>Object</c>s in addition to normal C# <c>object</c>s - but not at the same time!
     /// </remarks>
     public static class PubSubExtensions
     {
         private static readonly Hub Hub = new();
         private static readonly UnityHub UnityHub = new();
         private static bool _isApplicationQuitting;
+
+        /// <summary>
+        /// This extension supports two separate hubs and they are easy to mix
+        /// but messages can not go from one hub to an other so we guard it like this for now.
+        /// </summary>
+        /// <remarks>
+        /// <c>UnityHub</c> is specially designed for messaging between single threaded UNITY <c>Object</c>s.<br />
+        /// Standard <c>object</c> <c>Hub</c> uses <c>WeakReference</c>s that does not work (at all) with UNITY <c>Object</c>s
+        /// because actual reference is not managed by C# side.
+        /// </remarks>
+        [SuppressMessage("ReSharper", "ConvertToConstant.Global")]
+        public static readonly bool IsAllowMixedBubs = false;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void BeforeSceneLoad()
@@ -70,6 +84,7 @@ namespace Prg.PubSub
         /// <typeparam name="T">Type of the message</typeparam>
         public static void Publish<T>(this object _, T data)
         {
+            Assert.IsTrue(IsAllowMixedBubs, "IsAllowMixedBubs must be set explicitly");
             Hub.Publish(data);
         }
 
@@ -85,12 +100,14 @@ namespace Prg.PubSub
         /// <param name="messageHandler">Callback to receive the message</param>
         /// <param name="messageSelector">Predicate to filter messages</param>
         /// <typeparam name="T">Type of the message</typeparam>
-        public static void Subscribe<T>(this object subscriber, Action<T> messageHandler, Predicate<T> messageSelector = null)
+        public static void Subscribe<T>(this object subscriber, Action<T> messageHandler,
+            Predicate<T> messageSelector = null)
         {
             Hub.Subscribe(subscriber, messageHandler, messageSelector);
         }
 
-        public static void Subscribe<T>(this Object subscriber, Action<T> messageHandler, Predicate<T> messageSelector = null)
+        public static void Subscribe<T>(this Object subscriber, Action<T> messageHandler,
+            Predicate<T> messageSelector = null)
         {
             UnityHub.Subscribe(subscriber, messageHandler, messageSelector);
         }
