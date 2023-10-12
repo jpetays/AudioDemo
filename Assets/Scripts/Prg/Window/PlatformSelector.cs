@@ -39,19 +39,20 @@ namespace Prg.Window
     /// Allow selected component(s) on given platform(s).<br />
     /// </summary>
     /// <remarks>
-    /// Selected component(s) are activated or disabled based on selection criteria.
+    /// Selected component(s) are activated or disabled based on selection criteria success.
     /// </remarks>
     public class PlatformSelector : MonoBehaviour
     {
-        private const string EditorTooltip = "Applicable when running in UNITY Editor";
-        private const string DevelopmentBuildTooltip = "Applicable when 'Development Build' in Build Settings is set";
-        private const string ProductionTooltip = "Applicable for given build platforms below";
+        private const string Tp1 = "Applicable when running in UNITY Editor";
+        private const string Tp2 = "Applicable when 'Development Build' in Build Settings is set";
+        private const string Tp3 = "Applicable for given build platforms below";
+        private const string Tp4 = "GameObject(s) to enable on allowed platform(s), otherwise they are disabled";
 
-        [SerializeField, Tooltip(EditorTooltip)] private bool _isAllowInEditor;
-        [SerializeField, Tooltip(DevelopmentBuildTooltip)] private bool _isAllowDevelopmentBuild;
-        [SerializeField, Tooltip(ProductionTooltip)] private bool _isAllowInProductionPlatforms;
+        [SerializeField, Tooltip(Tp1)] private bool _isAllowInEditor;
+        [SerializeField, Tooltip(Tp2)] private bool _isAllowDevelopmentBuild;
+        [SerializeField, Tooltip(Tp3)] private bool _isAllowInProductionPlatforms;
         [SerializeField] private PlatformNames[] _platformNames;
-        [SerializeField] private GameObject[] _gameObjectsToWatch;
+        [SerializeField, Tooltip(Tp4)] private GameObject[] _gameObjectsToWatch;
 
         private void OnEnable()
         {
