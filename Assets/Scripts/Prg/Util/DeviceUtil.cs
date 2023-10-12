@@ -18,18 +18,18 @@ namespace Prg.Util
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void SubsystemRegistration()
         {
-            DeviceNames.Clear();
-            foreach (var device in InputSystem.devices)
+            CheckSimulator();
+        }
+
+        public static bool IsSimulator
+        {
+            get
             {
-                DeviceNames.Add(device.name);
-            }
-            DeviceNames.Sort();
-            SimulatorDeviceName = DeviceNames.Find(x => x.Contains("Simulated")) ??
-                              DeviceNames.Find(x => x.Contains("Simulator"));
-            IsSimulatorDevice = SimulatorDeviceName != null;
-            if (IsSimulatorDevice)
-            {
-                Debug.Log($"device {SimulatorDeviceName}");
+                if (DeviceNames.Count == 0)
+                {
+                    CheckSimulator();
+                }
+                return IsSimulatorDevice;
             }
         }
 
@@ -51,6 +51,23 @@ namespace Prg.Util
             }
             Debug.Log($"Devices: {string.Join(", ", DeviceNames)}");
             Debug.LogError($"Can not run inside a simulator: {SimulatorDeviceName}");
+        }
+
+        private static void CheckSimulator()
+        {
+            DeviceNames.Clear();
+            foreach (var device in InputSystem.devices)
+            {
+                DeviceNames.Add(device.name);
+            }
+            DeviceNames.Sort();
+            SimulatorDeviceName = DeviceNames.Find(x => x.Contains("Simulated")) ??
+                                  DeviceNames.Find(x => x.Contains("Simulator"));
+            IsSimulatorDevice = SimulatorDeviceName != null;
+            if (IsSimulatorDevice)
+            {
+                Debug.Log($"device {SimulatorDeviceName}");
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using Prg.Util;
 using UnityEngine;
 using SystemInfo = UnityEngine.Device.SystemInfo;
 
@@ -51,25 +52,7 @@ public static class AppPlatform
     /// <summary>
     /// Check if we are running a device simulator mode inside UNITY Editor.
     /// </summary>
-    public static bool IsSimulator
-    {
-        get
-        {
-            if (UnityEngine.Device.Application.installMode != ApplicationInstallMode.Editor)
-            {
-                // Simulator can run only inside Editor.
-                return false;
-            }
-            if (SystemInfo.deviceType != DeviceType.Handheld)
-            {
-                // Simulator simulates handheld devices (for now).
-                return false;
-            }
-            // Only Editor platforms can be simulated!
-            return UnityEngine.Device.Application.platform is not
-                (RuntimePlatform.WindowsEditor or RuntimePlatform.LinuxEditor or RuntimePlatform.OSXEditor);
-        }
-    }
+    public static bool IsSimulator => IsEditor && DeviceUtil.IsSimulator;
 
     /// <summary>
     /// Gets simple platform name.
