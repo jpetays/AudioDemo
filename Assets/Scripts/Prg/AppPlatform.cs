@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using Prg;
 using Prg.Util;
+using UnityEditor;
 using UnityEngine;
-using SystemInfo = UnityEngine.Device.SystemInfo;
+using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Convenience class for platform detection to access platform specific features.<br />
@@ -57,7 +59,7 @@ public static class AppPlatform
     /// <summary>
     /// Gets simple platform name.
     /// </summary>
-    public static string Name => UnityEngine.Device.Application.platform
+    public static string Name => Application.platform
         .ToString()
         .Replace("Player", "")
         .Replace("Editor", "");
@@ -70,18 +72,18 @@ public static class AppPlatform
     /// <summary>
     /// Desktop platforms.
     /// </summary>
-    public static bool IsDesktop => UnityEngine.Device.Application.platform is
+    public static bool IsDesktop => Application.platform is
         RuntimePlatform.WindowsPlayer or RuntimePlatform.LinuxPlayer or RuntimePlatform.OSXPlayer;
 
     /// <summary>
     /// WebGL platform.
     /// </summary>
-    public static bool IsWebGL => UnityEngine.Device.Application.platform is RuntimePlatform.WebGLPlayer;
+    public static bool IsWebGL => Application.platform is RuntimePlatform.WebGLPlayer;
 
     /// <summary>
     /// Windows platform can be editor, player or server.
     /// </summary>
-    public static bool IsWindows { get; } = UnityEngine.Device.Application.platform is
+    public static bool IsWindows { get; } = Application.platform is
         RuntimePlatform.WindowsEditor or RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsServer;
 
     /// <summary>
@@ -108,5 +110,29 @@ public static class AppPlatform
             refreshRate = 0;
         }
         return $"{screen} {refreshRate:0}Hz";
+    }
+
+    public static bool CanExit => !(
+        // NOP - There is no API provided for gracefully terminating an iOS application.
+        Application.platform == RuntimePlatform.IPhonePlayer ||
+        // NOP - no can do in browser
+        Application.platform == RuntimePlatform.WebGLPlayer
+    );
+
+    public static void ExitGracefully()
+    {
+        if (Application.platform == RuntimePlatform.WindowsEditor)
+        {
+#if UNITY_EDITOR
+            Debug.Log(RichText.Yellow("stop playing"));
+            EditorApplication.isPlaying = false;
+#endif
+            return;
+        }
+        if (CanExit)
+        {
+            // Android, desktop, etc. goes here
+            Application.Quit(0);
+        }
     }
 }

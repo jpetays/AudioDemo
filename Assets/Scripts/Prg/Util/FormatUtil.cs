@@ -37,5 +37,19 @@ namespace Prg.Util
         {
             return $"{vector.x:0.0},{vector.y:0.0},{vector.z:0.0}";
         }
+
+        public static string FormatD1(Vector3 vector, bool isVector3)
+        {
+            return isVector3
+                ? $"{vector.x:0.0},{vector.y:0.0},{vector.z:0.0}"
+                : $"{vector.x:0.0},{vector.y:0.0}";
+        }
+
+        public static string FormatD2(Vector3 vector, bool isVector3)
+        {
+            return isVector3
+                ? $"{vector.x:0.00},{vector.y:0.00},{vector.z:0.00}"
+                : $"{vector.x:0.00},{vector.y:0.00}";
+        }
     }
 }

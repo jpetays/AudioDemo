@@ -217,7 +217,7 @@ namespace Prg.Window
             }
             if (_currentWindows.Count <= 1)
             {
-                ExitApplication.ExitGracefully();
+                AppPlatform.ExitGracefully();
                 return;
             }
             PopAndHide();
