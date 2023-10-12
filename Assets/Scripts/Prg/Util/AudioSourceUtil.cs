@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.Audio;
 
 namespace Prg.Util
 {
@@ -55,6 +56,17 @@ namespace Prg.Util
             }
         }
 
+        public static void SetAudioMixerGroup(this AudioSource[] audioSources, AudioMixerGroup audioMixerGroup)
+        {
+            if (audioSources.Length == 0)
+            {
+                return;
+            }
+            foreach (var audioSource in audioSources)
+            {
+                audioSource.outputAudioMixerGroup = audioMixerGroup;
+            }
+        }
         public static void Play(this AudioSource[] audioSources)
         {
             if (audioSources.Length == 0)

@@ -51,7 +51,16 @@ namespace Demo.Audio
             if (_isDebugLog) Debug.Log($"{_exposedVolumeParam}", this);
             var audioSettings = AudioConfig.Get();
             _audioChannel = audioSettings.GetAudioChannelSettingBy(_exposedVolumeParam);
-            Assert.IsNotNull(_audioChannel, $"AudioChannelSetting not found for: {_exposedVolumeParam}");
+            if (_audioChannel == null)
+            {
+                // Config etc error, just disable us.
+                _slider.interactable = false;
+                if (_hasMuteButton)
+                {
+                    _muteButton.interactable = false;
+                }
+                return;
+            }
             Assert.IsNotNull(_audioChannel.AudioMixerGroup, $"AudioMixerGroup not found for: {_exposedVolumeParam}");
             _audioMixer = _audioChannel.AudioMixerGroup.audioMixer;
             Assert.IsNotNull(_audioMixer, $"AudioMixer not found for: {_exposedVolumeParam}");
