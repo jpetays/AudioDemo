@@ -68,5 +68,5 @@ Audio Test Screen has buttons to test Game and UI effects by pressing them.
 This demo has has been briefly tested on following platforms:
 
 * Windows Desktop ☑
-* Android
+* Android ☑
 * WebGL
