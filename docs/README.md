@@ -14,7 +14,7 @@ included.
 Starting and stopping the _audio output thread_ on Android/iOS is managed by _MobileAudio_ class.  
 Note that this uses included _Publish-Subscribe_ implementation to **broadcast** notifications when mobile device
 audio 'mute state' changes -
-if the game or its UI needs to be aware of these changes made by devices operator.
+if the game or its UI needs to be aware of these changes made by the user.
 
 ## Audio Channels
 
