@@ -38,6 +38,8 @@ namespace Demo.Audio
 
         public static MobileMuteState MuteState { get; private set; } = MobileMuteState.Unknown;
 
+        private static readonly Object UnityPublisher = new ();
+
         public static void Initialize()
         {
             Debug.Log($"audioOutputStarted={AudioSettings.Mobile.audioOutputStarted}");
@@ -61,7 +63,7 @@ namespace Demo.Audio
                 AudioSettings.Mobile.StartAudioOutput();
             }
             var audioNotification = new AudioNotification(isMuted);
-            audioNotification.Publish(audioNotification);
+            UnityPublisher.Publish(audioNotification);
         }
     }
 }

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
+using Debug = Prg.Debug;
 
 namespace Demo.Audio
 {
@@ -22,7 +23,7 @@ namespace Demo.Audio
 
         public bool IsDeviceMuted
         {
-            set => _audioNotification.text = value ? "Device is muted" : "Volume is ON";
+            set => AudioNotification = value ? "Device is muted" : "Volume is ON";
         }
 
         private void Awake()
