@@ -4,6 +4,9 @@ using UnityEngine.Assertions;
 
 namespace Demo.Audio
 {
+    /// <summary>
+    /// <c>AudioSettingsView</c> for game audio settings UI.
+    /// </summary>
     public class AudioSettingsView : MonoBehaviour
     {
         [SerializeField, Header("Settings")] private TextMeshProUGUI _audioNotification;
@@ -17,6 +20,11 @@ namespace Demo.Audio
             set => _audioNotification.text = value;
         }
 
+        public bool IsDeviceMuted
+        {
+            set => _audioNotification.text = value ? "Device is muted" : "Volume is ON";
+        }
+
         private void Awake()
         {
             Assert.IsNotNull(_masterSlider);
@@ -27,7 +35,7 @@ namespace Demo.Audio
 
         public void ResetView()
         {
-            AudioNotification = "Hello"; //string.Empty;
+            AudioNotification = $"Hello on {AppPlatform.Name}";
             _masterSlider.ResetComponent();
             _gameEffectsSlider.ResetComponent();
             _uiEffectsSlider.ResetComponent();

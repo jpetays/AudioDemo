@@ -72,6 +72,14 @@ public static class AppPlatform
     }
 
     /// <summary>
+    /// Gets simple platform name.
+    /// </summary>
+    public static string Name => UnityEngine.Device.Application.platform
+        .ToString()
+        .Replace("Player", "")
+        .Replace("Editor", "");
+
+    /// <summary>
     ///  Mobile platform (for consistency).
     /// </summary>
     public static bool IsMobile => Application.isMobilePlatform;

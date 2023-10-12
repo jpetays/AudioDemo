@@ -5,11 +5,8 @@ using UnityEngine.Assertions;
 namespace Demo.Audio
 {
     /// <summary>
-    /// <c>AudioSliderComponent</c> UI component for effects with audio sample.
+    /// <c>AudioSliderComponent</c> UI component for audio effects using audio sample to play when volume is changed.
     /// </summary>
-    /// <remarks>
-    /// Plays given audio sample effect when slider value is changed.
-    /// </remarks>
     [RequireComponent(typeof(AudioSource))]
     public class EffectAudioSliderComponent : AudioSliderComponent
     {

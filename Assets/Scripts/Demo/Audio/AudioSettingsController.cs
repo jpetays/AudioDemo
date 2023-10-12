@@ -1,8 +1,12 @@
+using Prg.PubSub;
 using UnityEngine;
 using UnityEngine.Assertions;
 
 namespace Demo.Audio
 {
+    /// <summary>
+    /// <c>AudioSettingsController</c> to manage game audio settings UI.
+    /// </summary>
     public class AudioSettingsController : MonoBehaviour
     {
         [SerializeField, Header("Settings")] private AudioSettingsView _view;
@@ -15,6 +19,22 @@ namespace Demo.Audio
         private void OnEnable()
         {
             _view.ResetView();
+            if (!AppPlatform.IsMobile)
+            {
+                return;
+            }
+            _view.IsDeviceMuted = MobileAudio.MuteState == MobileAudio.MobileMuteState.IsMuted;
+            this.Subscribe<AudioNotification>(OnAudioNotification);
+        }
+
+        private void OnDisable()
+        {
+            this.Unsubscribe();
+        }
+
+        private void OnAudioNotification(AudioNotification data)
+        {
+            _view.IsDeviceMuted = data.IsDeviceMuted;
         }
     }
 }
