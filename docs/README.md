@@ -69,4 +69,6 @@ This demo has has been briefly tested on following platforms:
 
 * Windows Desktop ☑
 * Android ☑
-* WebGL
+* WebGL ⛔ ⛅
+
+(⛅) _Music can be played but changing volume for individual AudioSources requires different solution._
