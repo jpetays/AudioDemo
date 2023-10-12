@@ -10,13 +10,13 @@ because UNITY has only limited support for audio in browsers as they have their 
 
 This demo has specific UNITY [mobile](https://docs.unity3d.com/ScriptReference/AudioSettings.Mobile.html) audio support included.
 
-Starting and stopping the _audio output thread_ on Android/iOS is managed by this class.  
-Note that this uses included _Publish-Subscribe_ implementation to **broadcast** notifications when mobile device audio 'mute state' changes
+Starting and stopping the _audio output thread_ on Android/iOS is managed by _MobileAudio_ class.  
+Note that this uses included _Publish-Subscribe_ implementation to **broadcast** notifications when mobile device audio 'mute state' changes - 
 if the game or its UI needs to be aware of these changes made by devices operator.  
 
 ## Audio Channels
 
-The demo has four audio channels identified by a **name** given in C# enum for convenience:
+The demo has four audio channels identified by its **name** given in C# enum for convenience to use in UNITY Editor:
 
 * MasterVolume
 * GameEffectsVolume
@@ -25,15 +25,15 @@ The demo has four audio channels identified by a **name** given in C# enum for c
 
 ## AudioConfig (_ScriptableObject_)
 
-AudioConfig has a list of audio channels that bind together audi channel name and related [AudioMixerGroup](https://docs.unity3d.com/ScriptReference/Audio.AudioMixerGroup.html) that is used to control audio for this channel.
+AudioConfig has a list of audio channels that bind together audio channel **name** and related [AudioMixerGroup](https://docs.unity3d.com/ScriptReference/Audio.AudioMixerGroup.html) that is used to control audio for this channel.
 
 AudioConfig is just a container and does not have any specific semantics over any audio channel how it is used.
 
 ### AudioChannelSetting (_Serializable_)
 
-AudioChannelSetting is responsible for loading, saving and updating audio channel settings and state.  
+AudioChannelSetting is responsible for loading, saving and updating audio channel persistent settings and state.  
 It manages _AudioMixerGroup_ associated with this audio channel.  
-Persistent audio channel settings are save in UNITY [PlayerPrefs](https://docs.unity3d.com/ScriptReference/PlayerPrefs.html).
+Audio channel persistent settings are saved in UNITY [PlayerPrefs](https://docs.unity3d.com/ScriptReference/PlayerPrefs.html).
 
 ## User Interface
 
@@ -46,10 +46,10 @@ This is done using UNITY AudioSource with _Play On Awake_ and _Loop_ checked and
 
 Audio Settings Screen has 
 * a notification area for mobile device 'mute state', and
-* slider for each audio channel placed by UI designer
+* slider for each audio channel placed by UI designer.
 
-_AudioSliderComponent_ is responsible for synchronizing UI slider state with backing _AudioChannelSetting_.  
-Connection between slider and the audio channel is done using audio channel **name**.
+_AudioSliderComponent_ is responsible for synchronizing UI slider state with related audio channel.  
+Connection between slider and the audio channel (_AudioChannelSetting_) is done using audio channel **name**.
 
 ### Audio (Effect) Test Screen
 
