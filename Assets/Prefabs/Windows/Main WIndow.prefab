@@ -897,7 +897,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _isAllowInEditor: 1
   _isAllowDevelopmentBuild: 0
-  _isAllowInProductionPlatforms: 0
+  _isAllowInProductionPlatforms: 1
   _platformNames: 0300000006000000
   _gameObjectsToWatch:
   - {fileID: 7076240658357498626}
