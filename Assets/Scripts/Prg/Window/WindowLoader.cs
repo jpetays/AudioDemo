@@ -29,7 +29,7 @@ namespace Prg.Window
                 {
                     yield return null;
                 }
-                Debug.Log($"WindowLoader start {RichText.Yellow($"frame #{Time.frameCount}")}");
+                Debug.Log($"WindowLoader {RichText.Yellow($"frame #{Time.frameCount}")} start");
             }
             if (_findLastCanvasForEditor)
             {
@@ -40,6 +40,10 @@ namespace Prg.Window
             windowManager.SetWindowsParent(gameObject);
             Assert.IsNotNull(_window.WindowPrefab, "_window.WindowPrefab != null");
             windowManager.ShowWindow(_window);
+            if (Time.frameCount < 10)
+            {
+                Debug.Log($"WindowLoader {RichText.Yellow($"frame #{Time.frameCount}")} done");
+            }
         }
 
         /// <summary>

@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Audio;
+using UnityEngine.Serialization;
 using Debug = Prg.Debug;
 
 namespace Demo.Audio
@@ -14,7 +15,7 @@ namespace Demo.Audio
     /// <remarks>
     /// This is used to 'bind' Editor settings to runtime C# code.
     /// </remarks>
-    public enum VolumeNames
+    public enum VolumeParamNames
     {
         MasterVolume = 0,
         GameEffectsVolume = 1,
@@ -23,29 +24,40 @@ namespace Demo.Audio
     }
 
     /// <summary>
-    /// <c>AudioMixer</c> settings for the game.
+    /// <c>AudioMixer</c> 'bindings' for the game.<br />
+    /// This is just a list of available <c>AudioSettings</c>'
+    /// so that we can manage given <c>AudioMixerGroup</c> at runtime byt its 'exposed parameter name'.
     /// </summary>
     /// <remarks>
-    /// This is just a list of available <c>AudioSetting</c>s
-    /// so that we can manage given <c>AudioMixerGroup</c> at runtime byt its 'exposed parameter name'.
+    /// The class name is <b>not</b> <c>AudioSetting</c> because UNITY has a class with same name.<br />
+    /// WebGL platform is <b>not</b> supported by UNITY with <c>AudioMixer</c>!
     /// </remarks>
-    [CreateAssetMenu(menuName = "Prg/" + nameof(AudioSettings), fileName = nameof(AudioSettings))]
+    [CreateAssetMenu(menuName = "Prg/" + nameof(AudioConfig), fileName = nameof(AudioConfig))]
     [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public class AudioSettings : ScriptableObject
+    public class AudioConfig : ScriptableObject
     {
         public const float SliderMaxValue = 100f;
         public const float SliderDefaultValue = 100f;
 
-        public static AudioSettings Get() => Resources.Load<AudioSettings>(nameof(AudioSettings));
+        public static AudioConfig Get() => Resources.Load<AudioConfig>(nameof(AudioConfig));
 
         public List<AudioChannelSetting> Settings;
 
-        public AudioChannelSetting GetAudioChannelSettingBy(VolumeNames volumeName) =>
-            Settings.Find(x => x._exposedVolumeName.Equals(volumeName));
+        public AudioChannelSetting GetAudioChannelSettingBy(VolumeParamNames volumeParamName) =>
+            Settings.Find(x => x._exposedVolumeParamName.Equals(volumeParamName));
 
         public static void Initialize()
         {
             var audioSettings = Get();
+#if UNITY_WEBGL
+            if (AppPlatform.IsWebGL)
+            {
+                audioSettings.Settings.Clear();
+                const string message = "AudioConfig: Audio Mixer is not supported in WebGL platform";
+                Debug.LogError(message);
+                return;
+            }
+#endif
             foreach (var audioChannel in audioSettings.Settings)
             {
                 audioChannel.LoadState(out var sliderValue, out var isMuted);
@@ -85,16 +97,16 @@ namespace Demo.Audio
         private const float MixerMinValue = -80f;
 
         [Header("Settings")] public AudioMixerGroup AudioMixerGroup;
-        public VolumeNames _exposedVolumeName;
+        [FormerlySerializedAs("_exposedVolumeName")] public VolumeParamNames _exposedVolumeParamName;
 
-        public string ExposedVolumeName => _exposedVolumeName.ToString();
+        public string ExposedVolumeName => _exposedVolumeParamName.ToString();
 
         private string PlayerPrefsName(string category, string name) => $"settings.audio.{category}.{name}";
 
         public void LoadState(out float sliderValue, out bool isMuted)
         {
             sliderValue = PlayerPrefs.GetFloat(PlayerPrefsName("volume", ExposedVolumeName),
-                AudioSettings.SliderDefaultValue);
+                AudioConfig.SliderDefaultValue);
             isMuted = PlayerPrefs.GetInt(PlayerPrefsName("mute", ExposedVolumeName), 0) != 0;
         }
 

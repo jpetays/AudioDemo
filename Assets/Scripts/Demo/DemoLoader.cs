@@ -1,29 +1,12 @@
 using System.Collections;
+using Demo.Audio;
 using Prg;
 using UnityEngine;
 using Debug = Prg.Debug;
 
 namespace Demo
 {
-    /// <summary>
-    /// Helper for StartCoroutine().
-    /// </summary>
-    internal class Loader : MonoBehaviour
-    {
-        private void Awake()
-        {
-            Debug.Log("Awake");
-        }
-
-        private void Start()
-        {
-            Debug.Log($"Loader start {RichText.Yellow($"frame #{Time.frameCount}")}");
-            // Audio needs to be started in Start()!
-            Audio.AudioSettings.Initialize();
-        }
-    }
-
-    internal static class DemoLoader
+    internal class DemoLoader : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void SubsystemRegistration()
@@ -37,14 +20,33 @@ namespace Demo
         {
             Debug.Log("BeforeSceneLoad");
             var parent = new GameObject(nameof(DemoLoader));
-            var loader = parent.AddComponent<Loader>();
+            var loader = parent.AddComponent<DemoLoader>();
+            // Start async services ASAP.
             loader.StartCoroutine(LoadServicesAsync());
         }
+
+        private void Awake()
+        {
+            Debug.Log("Awake");
+        }
+
+        private void Start()
+        {
+            Debug.Log($"Start() {RichText.Yellow($"frame #{Time.frameCount}")} start");
+            // UNITY Audio Mixer needs to be started in Start()!
+            AudioConfig.Initialize();
+            Debug.Log($"Start() {RichText.Yellow($"frame #{Time.frameCount}")} done");
+        }
+
         private static IEnumerator LoadServicesAsync()
         {
-            Debug.Log($"LoadServicesAsync start {RichText.Yellow($"frame #{Time.frameCount}")}");
+            Debug.Log($"LoadServicesAsync {RichText.Yellow($"frame #{Time.frameCount}")} start");
             yield return null;
-            Debug.Log("LoadServicesAsync exit");
+            if (AppPlatform.IsMobile)
+            {
+                MobileAudio.Initialize();
+            }
+            Debug.Log($"LoadServicesAsync {RichText.Yellow($"frame #{Time.frameCount}")} done");
         }
     }
 }

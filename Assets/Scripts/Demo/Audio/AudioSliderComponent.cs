@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Audio;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Debug = Prg.Debug;
 
@@ -14,9 +15,9 @@ namespace Demo.Audio
     public class AudioSliderComponent : MonoBehaviour
     {
         private const float SliderMinValue = 0;
-        private const float SliderMaxValue = AudioSettings.SliderMaxValue;
+        private const float SliderMaxValue = AudioConfig.SliderMaxValue;
 
-        [SerializeField, Header("Settings")] private VolumeNames _exposedVolume;
+        [FormerlySerializedAs("_exposedVolume"),SerializeField, Header("Settings")] private VolumeParamNames _exposedVolumeParam;
         [SerializeField] private string _sliderTitle;
         [SerializeField] private TextMeshProUGUI _sliderText;
         [SerializeField] private Slider _slider;
@@ -27,11 +28,11 @@ namespace Demo.Audio
 
         [SerializeField, Header("Live Data")] private float _sliderValue;
         [SerializeField] private float _volumeDbValue;
+        [SerializeField] private bool _hasMuteButton;
         [SerializeField] private bool _isMuted;
         [SerializeField] private string _exposedVolumeName;
         [SerializeField] private AudioMixer _audioMixer;
         [SerializeField] private AudioChannelSetting _audioChannel;
-        [SerializeField] private bool _hasMuteButton;
 
         protected bool IsSliderReady;
 
@@ -47,13 +48,13 @@ namespace Demo.Audio
 
         private void OnEnable()
         {
-            if (_isDebugLog) Debug.Log($"{_exposedVolume}", this);
-            var audioSettings = AudioSettings.Get();
-            _audioChannel = audioSettings.GetAudioChannelSettingBy(_exposedVolume);
-            Assert.IsNotNull(_audioChannel, $"AudioChannelSetting not found for: {_exposedVolume}");
-            Assert.IsNotNull(_audioChannel.AudioMixerGroup, $"AudioMixerGroup not found for: {_exposedVolume}");
+            if (_isDebugLog) Debug.Log($"{_exposedVolumeParam}", this);
+            var audioSettings = AudioConfig.Get();
+            _audioChannel = audioSettings.GetAudioChannelSettingBy(_exposedVolumeParam);
+            Assert.IsNotNull(_audioChannel, $"AudioChannelSetting not found for: {_exposedVolumeParam}");
+            Assert.IsNotNull(_audioChannel.AudioMixerGroup, $"AudioMixerGroup not found for: {_exposedVolumeParam}");
             _audioMixer = _audioChannel.AudioMixerGroup.audioMixer;
-            Assert.IsNotNull(_audioMixer, $"AudioMixer not found for: {_exposedVolume}");
+            Assert.IsNotNull(_audioMixer, $"AudioMixer not found for: {_exposedVolumeParam}");
             _exposedVolumeName = _audioChannel.ExposedVolumeName;
             if (string.IsNullOrWhiteSpace(_sliderTitle))
             {

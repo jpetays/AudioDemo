@@ -340,13 +340,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c82c4ef8298484dad1c036e6e11873e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _exposedVolumeParam: 0
+  _sliderTitle: 
   _sliderText: {fileID: 8298609618503103865}
   _slider: {fileID: 703659651617894813}
   _isWholeNumbers: 0
   _muteButton: {fileID: 8924526724129700715}
+  _isDebugLog: 0
+  _sliderValue: 0
+  _volumeDbValue: 0
+  _hasMuteButton: 0
+  _isMuted: 0
+  _exposedVolumeName: 
+  _audioMixer: {fileID: 0}
   _audioChannel:
     AudioMixerGroup: {fileID: 0}
-    _exposedVolumeName: 0
+    _exposedVolumeParamName: 0
 --- !u!1 &5703559009809578268
 GameObject:
   m_ObjectHideFlags: 0
@@ -518,8 +527,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 72
-  m_fontSizeBase: 72
+  m_fontSize: 60
+  m_fontSizeBase: 60
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
