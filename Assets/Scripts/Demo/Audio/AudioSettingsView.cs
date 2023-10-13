@@ -1,7 +1,6 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
-using Debug = Prg.Debug;
 
 namespace Demo.Audio
 {
@@ -10,11 +9,17 @@ namespace Demo.Audio
     /// </summary>
     public class AudioSettingsView : MonoBehaviour
     {
-        [SerializeField, Header("Settings")] private TextMeshProUGUI _audioNotification;
+        [SerializeField, Header("Settings")] private TextMeshProUGUI _windowTitle;
+        [SerializeField] private TextMeshProUGUI _audioNotification;
         [SerializeField] private AudioSliderComponent _masterSlider;
         [SerializeField] private AudioSliderComponent _gameEffectsSlider;
         [SerializeField] private AudioSliderComponent _uiEffectsSlider;
         [SerializeField] private AudioSliderComponent _musicSlider;
+
+        public string WindowTitle
+        {
+            set => _windowTitle.text = value;
+        }
 
         public string AudioNotification
         {

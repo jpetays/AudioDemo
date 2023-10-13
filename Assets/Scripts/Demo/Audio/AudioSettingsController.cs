@@ -1,3 +1,4 @@
+using System.Text;
 using Prg.PubSub;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -19,6 +20,11 @@ namespace Demo.Audio
         private void OnEnable()
         {
             _view.ResetView();
+            var startupMessage = new StringBuilder()
+                .Append(" Ver ").Append(BuildInfo.Version)
+                .Append(" Screen ").Append(AppPlatform.Resolution())
+                .ToString();
+            _view.WindowTitle = $"Audio Settings\r\n{startupMessage}";
             if (!AppPlatform.IsMobile)
             {
                 return;
