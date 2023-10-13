@@ -21,11 +21,10 @@ namespace Demo.Audio
     /// https://docs.unity3d.com/ScriptReference/PlayerSettings-muteOtherAudioSources.html
     /// </summary>
     /// <remarks>
-    /// This works when music synchronization (on mute/un-mute) is not important or managed elsewhere.<br />
+    /// This works when music synchronization (mute/un-mute) is not important or managed elsewhere.<br />
     /// UNITY <c>AudioSource</c>s are frozen when audio is muted and un-frozen when un-muted.<br />
     /// <b>But</b> <c>AudioSource</c> <b>play state</b> is not changed and
-    /// they will continue where they was left on un-mute!<br />
-    /// <i>Note that this class has not been tested extensively [read: not at all device(s)].</i>
+    /// they will continue where they was left on un-mute!
     /// </remarks>
     public static class MobileAudio
     {
@@ -37,8 +36,6 @@ namespace Demo.Audio
         }
 
         public static MobileMuteState MuteState { get; private set; } = MobileMuteState.Unknown;
-
-        private static readonly Object UnityPublisher = new ();
 
         public static void Initialize()
         {
@@ -63,7 +60,7 @@ namespace Demo.Audio
                 AudioSettings.Mobile.StartAudioOutput();
             }
             var audioNotification = new AudioNotification(isMuted);
-            UnityPublisher.Publish(audioNotification);
+            audioNotification.Publish(audioNotification);
         }
     }
 }

@@ -1,21 +1,64 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Object = UnityEngine.Object;
 
 namespace Prg.PubSub
 {
     /// <summary>
-    /// Simple Publish Subscribe Pattern <c>Hub</c> implementation using <c>WeakReference</c>.
+    /// Simple Publish Subscribe Pattern implementation using C# <c>WeakReference</c>s and/or <c>UnityEngine.Object</c>s.
     /// </summary>
     /// <remarks>
     /// This implementation is multi-threaded safe!
     /// </remarks>
     public class Hub
     {
+        /// <summary>
+        /// Wrapper for actual Subscriber object.<br />
+        /// <c>WeakReference</c> and <c>UnityEngine.Object</c> requires a bit different handling to detect if Subscriber is still alive.
+        /// </summary>
+        private class Subscriber
+        {
+            public readonly bool IsWeakRef;
+            private readonly WeakReference _cSubscriber;
+            private readonly Object _uSubscriber;
+
+            public bool IsAlive => IsWeakRef ? _cSubscriber.IsAlive : _uSubscriber != null;
+
+            public object Target => IsWeakRef ? _cSubscriber.Target : _uSubscriber;
+
+            public Subscriber(object subscriber)
+            {
+                if (subscriber is Object unityObject)
+                {
+                    IsWeakRef = false;
+                    _uSubscriber = unityObject;
+                }
+                else
+                {
+                    IsWeakRef = true;
+                    _cSubscriber = new WeakReference(subscriber);
+                }
+            }
+
+            public override string ToString()
+            {
+                return IsWeakRef
+                    ? _cSubscriber.IsAlive ? $"{_cSubscriber}" : "_Garbage_"
+                    : $"{_uSubscriber}";
+            }
+        }
+
+        /// <summary>
+        /// The message Handler aka (client) Subscriber.
+        /// </summary>
+        /// <remarks>
+        /// Names here are not best possible, this is very old implementation :-(
+        /// </remarks>
         private class Handler
         {
             public readonly Delegate Action;
-            public readonly WeakReference Subscriber;
+            public readonly Subscriber Subscriber;
             public readonly Type MessageType;
             private readonly object _selectorWrapper;
 
@@ -32,7 +75,7 @@ namespace Prg.PubSub
                 return false;
             }
 
-            public Handler(Delegate action, WeakReference subscriber, Type messageType, object selectorWrapper)
+            public Handler(Delegate action, Subscriber subscriber, Type messageType, object selectorWrapper)
             {
                 Action = action;
                 Subscriber = subscriber;
@@ -42,7 +85,8 @@ namespace Prg.PubSub
 
             public override string ToString()
             {
-                return $"Action={Action.Method.Name} Subscriber={(Subscriber.IsAlive ? Subscriber.Target : "_GC_")} Type={MessageType.Name}";
+                return
+                    $"Action={Action.Method.Name} Subscriber={Subscriber} Type={MessageType.Name}";
             }
 
             public class SelectorWrapper<T>
@@ -80,7 +124,7 @@ namespace Prg.PubSub
 
         public void Publish<T>(T data = default)
         {
-            var handlerList = new List<Handler>();
+            var handlersToCall = new List<Handler>();
             var handlersToRemoveList = new List<Handler>();
 
             lock (_locker)
@@ -94,7 +138,7 @@ namespace Prg.PubSub
                     }
                     if (handler.MessageType.IsAssignableFrom(typeof(T)))
                     {
-                        handlerList.Add(handler);
+                        handlersToCall.Add(handler);
                     }
                 }
 
@@ -105,30 +149,44 @@ namespace Prg.PubSub
                 }
             }
 
-            foreach (var handler in handlerList)
+            foreach (var handler in handlersToCall)
             {
-                // Get reference to subscriber 1) to find that is is alive now and 2) to keep it alive during the callback.
-                var target = handler.Subscriber.Target;
-                if (target == null)
-                {
-                    continue;
-                }
                 if (!handler.Select(data))
                 {
                     continue;
                 }
-                ((Action<T>)handler.Action)(data);
+                var subscriber = handler.Subscriber;
+                if (subscriber.IsWeakRef)
+                {
+                    // Get reference to subscriber's target 1) to find that is is alive now and 2) to keep it alive during the callback.
+                    var target = subscriber.Target;
+                    if (target == null)
+                    {
+                        continue;
+                    }
+                    ((Action<T>)handler.Action)(data);
 
-                // References the specified object, which makes it ineligible for garbage collection
-                // from the start of the current routine to the point where this method is called.
-                GC.KeepAlive(target);
+                    // References the specified object, which makes it ineligible for garbage collection
+                    // from the start of the current routine to the point where this method is called.
+                    GC.KeepAlive(target);
+                }
+                else
+                {
+                    // Just check that target exists in UNITY
+                    var target = subscriber.Target;
+                    if (target == null)
+                    {
+                        continue;
+                    }
+                    ((Action<T>)handler.Action)(data);
+                }
             }
         }
 
         public void Subscribe<T>(object subscriber, Action<T> messageHandler, Predicate<T> messageSelector)
         {
             var selectorWrapper = messageSelector != null ? new Handler.SelectorWrapper<T>(messageSelector) : null;
-            var item = new Handler(messageHandler, new WeakReference(subscriber), typeof(T), selectorWrapper);
+            var item = new Handler(messageHandler, new Subscriber(subscriber), typeof(T), selectorWrapper);
             lock (_locker)
             {
                 //-Debug.Log($"subscribe {item}");
@@ -158,7 +216,8 @@ namespace Prg.PubSub
             {
                 var query = _handlers
                     .Where(handler => !handler.Subscriber.IsAlive ||
-                                      (handler.MessageType == typeof(T) && Equals(handler.Subscriber.Target, subscriber)));
+                                      (handler.MessageType == typeof(T) &&
+                                       Equals(handler.Subscriber.Target, subscriber)));
 
                 if (handlerToRemove != null)
                 {

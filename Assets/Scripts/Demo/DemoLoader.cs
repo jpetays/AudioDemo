@@ -2,9 +2,7 @@ using System.Collections;
 using System.Text;
 using Demo.Audio;
 using Prg;
-using Prg.PubSub;
 using UnityEngine;
-using UnityEngine.Assertions;
 using Debug = Prg.Debug;
 
 namespace Demo
@@ -22,8 +20,6 @@ namespace Demo
         private static void BeforeSceneLoad()
         {
             Debug.Log("BeforeSceneLoad");
-            // Check this explicitly here to ensure that we do not mistakenly confuse between publisher hubs.
-            Assert.IsFalse(PubSubExtensions.IsAllowMixedBubs, "IsAllowMixedBubs is not allowed for this project");
             var parent = new GameObject(nameof(DemoLoader));
             var loader = parent.AddComponent<DemoLoader>();
             // Start async services ASAP.

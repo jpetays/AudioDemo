@@ -17,20 +17,7 @@ namespace Prg.PubSub
     public static class PubSubExtensions
     {
         private static readonly Hub Hub = new();
-        private static readonly UnityHub UnityHub = new();
         private static bool _isApplicationQuitting;
-
-        /// <summary>
-        /// This extension supports two separate hubs and they are easy to mix
-        /// but messages can not go from one hub to an other so we guard it like this for now.
-        /// </summary>
-        /// <remarks>
-        /// <c>UnityHub</c> is specially designed for messaging between single threaded UNITY <c>Object</c>s.<br />
-        /// Standard <c>object</c> <c>Hub</c> uses <c>WeakReference</c>s that does not work (at all) with UNITY <c>Object</c>s
-        /// because actual reference is not managed by C# side.
-        /// </remarks>
-        [SuppressMessage("ReSharper", "ConvertToConstant.Global")]
-        public static readonly bool IsAllowMixedBubs = false;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void BeforeSceneLoad()
@@ -48,7 +35,6 @@ namespace Prg.PubSub
                     return;
                 }
                 Hub.CheckHandlerCount(isLogging: true);
-                UnityHub.CheckHandlerCount(isLogging: true);
             }
 
             _isApplicationQuitting = false;
@@ -67,16 +53,6 @@ namespace Prg.PubSub
         }
 
         /// <summary>
-        /// Gets default hub for this subscriber.
-        /// </summary>
-        /// <param name="subscriber">The subscriber for this hub</param>
-        /// <returns>The default hub instance appropriate for this object type.</returns>
-        public static UnityHub GetHub(this Object subscriber)
-        {
-            return UnityHub;
-        }
-
-        /// <summary>
         /// Publish a message to all subscribers.
         /// </summary>
         /// <param name="_">Sending object is not used</param>
@@ -84,13 +60,7 @@ namespace Prg.PubSub
         /// <typeparam name="T">Type of the message</typeparam>
         public static void Publish<T>(this object _, T data)
         {
-            Assert.IsTrue(IsAllowMixedBubs, "IsAllowMixedBubs must be set explicitly");
             Hub.Publish(data);
-        }
-
-        public static void Publish<T>(this Object _, T data)
-        {
-            UnityHub.Publish(data);
         }
 
         /// <summary>
@@ -106,12 +76,6 @@ namespace Prg.PubSub
             Hub.Subscribe(subscriber, messageHandler, messageSelector);
         }
 
-        public static void Subscribe<T>(this Object subscriber, Action<T> messageHandler,
-            Predicate<T> messageSelector = null)
-        {
-            UnityHub.Subscribe(subscriber, messageHandler, messageSelector);
-        }
-
         /// <summary>
         /// Unsubscribes to all messages. 
         /// </summary>
@@ -119,11 +83,6 @@ namespace Prg.PubSub
         public static void Unsubscribe(this object subscriber)
         {
             Hub.Unsubscribe(subscriber);
-        }
-
-        public static void Unsubscribe(this Object subscriber)
-        {
-            UnityHub.Unsubscribe(subscriber);
         }
 
         /// <summary>
@@ -136,11 +95,6 @@ namespace Prg.PubSub
             Hub.Unsubscribe(subscriber, (Action<T>)null);
         }
 
-        public static void Unsubscribe<T>(this Object subscriber)
-        {
-            UnityHub.Unsubscribe(subscriber, (Action<T>)null);
-        }
-
         /// <summary>
         /// Unsubscribes to messages for given message handler callback.
         /// </summary>
@@ -150,11 +104,6 @@ namespace Prg.PubSub
         public static void Unsubscribe<T>(this object subscriber, Action<T> messageHandler)
         {
             Hub.Unsubscribe(subscriber, messageHandler);
-        }
-
-        public static void Unsubscribe<T>(this Object subscriber, Action<T> messageHandler)
-        {
-            UnityHub.Unsubscribe(subscriber, messageHandler);
         }
     }
 }
