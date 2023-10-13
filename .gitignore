@@ -116,3 +116,7 @@ _[Ll]ocal_*
 /buildAndroid
 /buildWebGL
 /buildWin64
+
+# Caddy executable (~40MB)
+/etc/caddy/caddy.exe
+/etc/caddy/logs/*
