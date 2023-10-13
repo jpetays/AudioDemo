@@ -38,12 +38,6 @@ namespace Demo
             _button.onClick.AddListener(_canInterrupt
                 ? () => PlayOnce(_audioSources[0])
                 : () => StartCoroutine(PlayAudio()));
-            if (!AppPlatform.IsWebGL)
-            {
-                return;
-            }
-            // AudioMixer is not supported in WebGL.
-            _audioSources.SetAudioMixerGroup(null);
         }
 
         private static void PlayOnce(AudioSource audioSource)

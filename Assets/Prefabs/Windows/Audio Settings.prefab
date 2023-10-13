@@ -132,7 +132,6 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1023354472059192163}
   - {fileID: 6442791416381822673}
   - {fileID: 6458042122395297492}
   - {fileID: 7708084061232932424}
@@ -143,7 +142,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -149}
   m_SizeDelta: {x: 1920, y: 880}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &838420285100957341
@@ -197,19 +196,19 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2515238126790418658}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 3082528346431913561}
+  m_Father: {fileID: 5929292523598088537}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0.000061035156}
   m_SizeDelta: {x: 200, y: 80}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &8069170608585846975
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -238,7 +237,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Audio Settings
+  m_text: 'Audio Settings
+
+    Audio Settings'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -273,7 +274,7 @@ MonoBehaviour:
   m_fontSizeMax: 72
   m_fontStyle: 1
   m_HorizontalAlignment: 2
-  m_VerticalAlignment: 512
+  m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
@@ -472,6 +473,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 480530206570101621}
+  - {fileID: 1023354472059192163}
   - {fileID: 3082528346431913561}
   m_Father: {fileID: 3655037325608381826}
   m_RootOrder: -1
@@ -535,6 +537,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbfb95af17174ebc8943235f69bc9520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _windowTitle: {fileID: 516060039901506042}
   _audioNotification: {fileID: 1161749762897272117}
   _masterSlider: {fileID: 1368095183478305190}
   _gameEffectsSlider: {fileID: 7778216395241963497}
@@ -805,7 +808,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edc128f0d1db4e0ebfd371a15885caa9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _exposedVolume: 1
+  _exposedVolumeParam: 1
   _sliderTitle: 
   _sliderText: {fileID: 7226639850258029659}
   _slider: {fileID: 2207710929569585343}
@@ -814,13 +817,13 @@ MonoBehaviour:
   _isDebugLog: 0
   _sliderValue: 0
   _volumeDbValue: 0
+  _hasMuteButton: 0
   _isMuted: 0
   _exposedVolumeName: 
   _audioMixer: {fileID: 0}
   _audioChannel:
     AudioMixerGroup: {fileID: 0}
-    _exposedVolumeName: 0
-  _hasMuteButton: 0
+    _exposedVolumeParamName: 0
   _sampleEffect: {fileID: 4922057159208020767}
   _playGracePeriod: 0.2
 --- !u!114 &7226639850258029659 stripped
@@ -1311,7 +1314,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edc128f0d1db4e0ebfd371a15885caa9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _exposedVolume: 2
+  _exposedVolumeParam: 2
   _sliderTitle: 
   _sliderText: {fileID: 3981151385886176455}
   _slider: {fileID: 5608837326370074659}
@@ -1320,13 +1323,13 @@ MonoBehaviour:
   _isDebugLog: 0
   _sliderValue: 0
   _volumeDbValue: 0
+  _hasMuteButton: 0
   _isMuted: 0
   _exposedVolumeName: 
   _audioMixer: {fileID: 0}
   _audioChannel:
     AudioMixerGroup: {fileID: 0}
-    _exposedVolumeName: 0
-  _hasMuteButton: 0
+    _exposedVolumeParamName: 0
   _sampleEffect: {fileID: 6822262733445585392}
   _playGracePeriod: 0.2
 --- !u!114 &3981151385886176455 stripped
@@ -1366,6 +1369,10 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3961978044757579800, guid: 9d6d2c0812c0f3f4bb6d05eabde331fc, type: 3}
       propertyPath: _exposedVolume
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3961978044757579800, guid: 9d6d2c0812c0f3f4bb6d05eabde331fc, type: 3}
+      propertyPath: _exposedVolumeParam
       value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 5522374216880749118, guid: 9d6d2c0812c0f3f4bb6d05eabde331fc, type: 3}

@@ -16,7 +16,7 @@ namespace Demo
         private static readonly Encoding Encoding = PlatformUtil.Encoding;
 
         private const string BundleVersionCodeValue = "1";
-        private const string PatchValue = "1";
+        private const string PatchValue = "4";
         private const string CompiledOnDateValue = "2023-01-10 15:44";
 
         public static string Version => $"{Application.version}.{BundleVersionCodeValue}.{PatchValue}";

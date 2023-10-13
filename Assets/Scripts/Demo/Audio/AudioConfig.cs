@@ -49,15 +49,12 @@ namespace Demo.Audio
         public static void Initialize()
         {
             var audioSettings = Get();
-#if UNITY_WEBGL
             if (AppPlatform.IsWebGL)
             {
+                // We just remove all settings to prevent someone accidentally using them.
                 audioSettings.Settings.Clear();
-                const string message = "AudioConfig: Audio Mixer is not supported in WebGL platform";
-                Debug.LogError(message);
                 return;
             }
-#endif
             foreach (var audioChannel in audioSettings.Settings)
             {
                 audioChannel.LoadState(out var sliderValue, out var isMuted);
