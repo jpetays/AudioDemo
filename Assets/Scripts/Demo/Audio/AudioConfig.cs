@@ -10,20 +10,6 @@ using Debug = Prg.Debug;
 namespace Demo.Audio
 {
     /// <summary>
-    /// Names for allowed <c>AudioMixerGroup</c> exposed parameter names for attenuation (volume).
-    /// </summary>
-    /// <remarks>
-    /// This is used to 'bind' Editor settings to runtime C# code.
-    /// </remarks>
-    public enum VolumeParamNames
-    {
-        MasterVolume = 0,
-        GameEffectsVolume = 1,
-        UiEffectsVolume = 2,
-        MusicVolume = 3
-    }
-
-    /// <summary>
     /// <c>AudioMixer</c> 'bindings' for the game.<br />
     /// This is just a list of available <c>AudioSettings</c>'
     /// so that we can manage given <c>AudioMixerGroup</c> at runtime byt its 'exposed parameter name'.
