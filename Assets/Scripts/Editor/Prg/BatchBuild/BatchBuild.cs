@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using Prg;
 using Prg.Util;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -71,7 +70,7 @@ namespace Editor.Prg.BatchBuild
 
         private static void _BuildPlayer()
         {
-            BuildInfo.UpdateFile(PlayerSettings.Android.bundleVersionCode);
+            BuildInfoUpdater.UpdateFile(PlayerSettings.Android.bundleVersionCode);
             var unityVersion = Application.unityVersion;
             Debug.Log($"batch_build_ start BUILD in UNITY {unityVersion}");
             var options = new BatchBuildOptions(Environment.GetCommandLineArgs());
