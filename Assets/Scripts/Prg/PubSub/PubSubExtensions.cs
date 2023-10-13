@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
-using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
 
 namespace Prg.PubSub
 {
