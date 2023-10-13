@@ -3,8 +3,10 @@
 This is a simple UNITY demo how to use [AudioMixer](https://docs.unity3d.com/Manual/AudioMixer.html) to manage 'audio
 channel' volume and mute state in a game.
 
-_Note that unfortunately this does not work for [WebGL](https://docs.unity3d.com/Manual/webgl-audio.html) builds,
-because UNITY has only limited support for audio in browsers as they have their own limitations._
+_Unfortunately this does not work for [WebGL](https://docs.unity3d.com/Manual/webgl-audio.html) builds,
+because UNITY has limited support for audio in browsers as they have their own limitations._
+
+UNITY version is 2022.3.4f1.
 
 ## Mobile Support
 
@@ -14,7 +16,7 @@ included.
 Starting and stopping the _audio output thread_ on Android/iOS is managed by _MobileAudio_ class.  
 Note that this uses included _Publish-Subscribe_ implementation to **broadcast** notifications when mobile device
 audio 'mute state' changes -
-if the game or its UI needs to be aware of these changes made by devices operator.
+if the game or its UI needs to be aware of these changes made by the user.
 
 ## Audio Channels
 
