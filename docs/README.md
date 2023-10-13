@@ -3,10 +3,10 @@
 This is a simple UNITY demo how to use [AudioMixer](https://docs.unity3d.com/Manual/AudioMixer.html) to manage 'audio
 channel' volume and mute state in a game.
 
-_Unfortunately Audio Mixer does not work for [WebGL](https://docs.unity3d.com/Manual/webgl-audio.html) builds and they are just disabled so everything is played at 100% volume.  
+_Unfortunately Audio Mixer does not work for [WebGL](https://docs.unity3d.com/Manual/webgl-audio.html) builds and they are just disabled so everything is played at 100% volume.
 UNITY has minimal support for audio in browsers as they have their own quite strict limitations._
 
-Used UNITY version is 2022.3.4f1.
+Used UNITY version is 2022.3.4f1 (C# 9.0) and does not open with most earlier UNITY version because this project uses some latest C# features not available in earlier versions.
 
 ## Mobile Support
 
