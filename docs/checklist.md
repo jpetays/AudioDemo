@@ -79,13 +79,21 @@ Rest is up to the programmers what they want to achieve or is required by them.
 
 ### AudioConfig.cs (_ScriptableObject_)
 
-AudioConfig.cs contains the settings and is responsible of initializing audio channels when requested during game startup.
+AudioConfig contains the settings and is responsible of initializing audio channels when requested during game startup.
 
 ### AudioChannelSetting.cs
 
-AudioChannelSetting.cs manages actual UNITY AudioMixerGroup (volume) and persistent settings related with it.
+AudioChannelSetting manages actual UNITY AudioMixerGroup (volume) and persistent settings related with it.
 
-Following functions are used to save audio channel settings in
+There is discrepancy between UI slider liner 0..100 and audio channel logarithmic -80..0 dB values.  
+AudioChannelSetting converts from slider to decibel value using formula from article [The right way to make a volume slider in Unity (using logarithmic conversion)](https://johnleonardfrench.com/the-right-way-to-make-a-volume-slider-in-unity-using-logarithmic-conversion/).
+```csharp
+mixer.SetFloat("MusicVol", Mathf.Log10(sliderValue) * 20);
+```
+
+Some other functions that might be of interest follows.
+
+Functions to load and save audio channel settings using
 UNITY [PlayerPrefs](https://docs.unity3d.com/ScriptReference/PlayerPrefs.html).
 
 ```csharp
@@ -103,7 +111,7 @@ public void SaveState(float sliderValue, bool isMuted)
 }
 ```
 
-Following functions are used to update audio channel volume.
+Functions to set and get actual audio channel volume.
 
 ```csharp
 private void AudioMixerSetFloat(float mixerValueDb)
