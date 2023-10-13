@@ -26,6 +26,7 @@ namespace Editor.Prg.BatchBuild
     /// -envFile parameter is our own for our own build parameters in addition to required UNITY standard parameters.<br />
     /// '-executeMethod' parameter starts build process using this file.<br />
     /// </remarks>
+    // ReSharper disable once UnusedType.Global
     internal static class BatchBuild
     {
         /// <summary>
