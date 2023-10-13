@@ -2,9 +2,12 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Audio;
 
-namespace Prg.Util
+namespace Prg.Audio
 {
-    public static class AudioSourceUtil
+    /// <summary>
+    /// Extension methods for UNITY audio.
+    /// </summary>
+    public static class AudioExtensions
     {
         public static AudioSource[] FindAudioSources(this GameObject gameObject)
         {
@@ -67,6 +70,7 @@ namespace Prg.Util
                 audioSource.outputAudioMixerGroup = audioMixerGroup;
             }
         }
+
         public static void Play(this AudioSource[] audioSources)
         {
             if (audioSources.Length == 0)
