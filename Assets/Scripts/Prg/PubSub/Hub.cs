@@ -1,3 +1,9 @@
+#if PUBSUB_THREADS
+#else
+using System.Threading;
+using UnityEngine;
+using UnityEngine.Assertions;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +15,8 @@ namespace Prg.PubSub
     /// Simple Publish Subscribe Pattern implementation using C# <c>WeakReference</c>s and/or <c>UnityEngine.Object</c>s.
     /// </summary>
     /// <remarks>
-    /// This implementation is multi-threaded safe!
+    /// This implementation can be configured with #define <c>PUBSUB_THREADS</c> to be multi-threaded safe!<br />
+    /// Normal UNITY application can do well with single threaded model.
     /// </remarks>
     public class Hub
     {
@@ -100,18 +107,33 @@ namespace Prg.PubSub
             }
         }
 
+#if PUBSUB_THREADS
         private readonly object _locker = new();
+#else
+        private static int _mainThreadId;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void SubsystemRegistration()
+        {
+            // Manual reset if UNITY Domain Reloading is disabled.
+            _mainThreadId = Thread.CurrentThread.ManagedThreadId;
+        }
+#endif
         private readonly List<Handler> _handlers = new();
 
-        public int CheckHandlerCount(bool isLogging = false)
+        public void DumpHandlerCount()
         {
             int handlerCount;
+#if PUBSUB_THREADS
             lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
             {
                 handlerCount = _handlers.Count;
-                if (handlerCount == 0 || !isLogging)
+                if (handlerCount == 0)
                 {
-                    return handlerCount;
+                    return;
                 }
                 foreach (var handler in _handlers)
                 {
@@ -119,7 +141,6 @@ namespace Prg.PubSub
                 }
             }
             Debug.LogWarning($"handlerCount is {handlerCount}");
-            return handlerCount;
         }
 
         public void Publish<T>(T data = default)
@@ -127,7 +148,11 @@ namespace Prg.PubSub
             var handlersToCall = new List<Handler>();
             var handlersToRemoveList = new List<Handler>();
 
+#if PUBSUB_THREADS
             lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
             {
                 foreach (var handler in _handlers)
                 {
@@ -187,7 +212,11 @@ namespace Prg.PubSub
         {
             var selectorWrapper = messageSelector != null ? new Handler.SelectorWrapper<T>(messageSelector) : null;
             var item = new Handler(messageHandler, new Subscriber(subscriber), typeof(T), selectorWrapper);
+#if PUBSUB_THREADS
             lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
             {
                 //-Debug.Log($"subscribe {item}");
                 _handlers.Add(item);
@@ -196,7 +225,11 @@ namespace Prg.PubSub
 
         public void Unsubscribe(object subscriber)
         {
+#if PUBSUB_THREADS
             lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
             {
                 var query = _handlers
                     .Where(handler => !handler.Subscriber.IsAlive ||
@@ -212,7 +245,11 @@ namespace Prg.PubSub
 
         public void Unsubscribe<T>(object subscriber, Action<T> handlerToRemove = null)
         {
+#if PUBSUB_THREADS
             lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
             {
                 var query = _handlers
                     .Where(handler => !handler.Subscriber.IsAlive ||

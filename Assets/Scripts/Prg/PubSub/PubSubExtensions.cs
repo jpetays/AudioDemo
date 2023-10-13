@@ -28,18 +28,20 @@ namespace Prg.PubSub
         [Conditional("UNITY_EDITOR")]
         private static void SetEditorStatus()
         {
+            _isApplicationQuitting = false;
+            Application.quitting += () => _isApplicationQuitting = true;
+            SceneManager.sceneUnloaded += _ => CheckHandlerCount();
+            return;
+
             void CheckHandlerCount()
             {
                 if (_isApplicationQuitting)
                 {
                     return;
                 }
-                Hub.CheckHandlerCount(isLogging: true);
+                // We assume that all handlers have Unsubscribed when level ends.
+                Hub.DumpHandlerCount();
             }
-
-            _isApplicationQuitting = false;
-            Application.quitting += () => _isApplicationQuitting = true;
-            SceneManager.sceneUnloaded += _ => CheckHandlerCount();
         }
 
         /// <summary>
