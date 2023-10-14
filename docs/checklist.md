@@ -77,19 +77,36 @@ Programmatic access to manipulate audio channel volume requires that following t
 
 Rest is up to the programmers what they want to achieve or is required by them.
 
-### AudioConfig.cs (_ScriptableObject_)
+### Playing sounds
 
-AudioConfig contains the settings and is responsible of initializing audio channels when requested during game startup.
+Playing sounds with Audio Mixer is 100% similar that playing them without.  
+Just call [AudioSource.Play](https://docs.unity3d.com/ScriptReference/AudioSource.Play.html) when you need to play it.
 
-### AudioChannelSetting.cs
+### Configuration details
+
+Below is some code snippets that might be interesting for programmers to look at.
+
+#### AudioConfig.cs (_ScriptableObject_)
+
+AudioConfig contains the settings and can load and initialize audio channels when requested.  
+This is done typically once early when the game is starting up.
+
+#### AudioChannelSetting.cs
 
 AudioChannelSetting manages actual UNITY AudioMixerGroup (volume) and persistent settings related with it.
 
-There is discrepancy between UI slider liner 0..100 and audio channel logarithmic -80..0 dB values.  
-AudioChannelSetting converts from slider to decibel value using formula from article [The right way to make a volume slider in Unity (using logarithmic conversion)](https://johnleonardfrench.com/the-right-way-to-make-a-volume-slider-in-unity-using-logarithmic-conversion/).
+There is a discrepancy between UI slider liner 0..100 values and audio channel logarithmic -80..0 decibel values.  
+AudioChannelSetting converts from slider to decibel value using well known UNITY formula. Check
+article [The right way to make a volume slider in Unity (using logarithmic conversion)](https://johnleonardfrench.com/the-right-way-to-make-a-volume-slider-in-unity-using-logarithmic-conversion/)
+for details and some explanation.
+
 ```csharp
 mixer.SetFloat("MusicVol", Mathf.Log10(sliderValue) * 20);
 ```
+
+_Note that this might not be the best solution but it works.  
+It is said that human ear perceives 10 dB drop in volume as if it was reduced to half (50%).  
+Above formula reduces volume 6 dB when slider is moved to 50%._
 
 Some other functions that might be of interest follows.
 
