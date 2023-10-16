@@ -39,7 +39,9 @@ namespace Prg.Util
         private const string TooltipLog = "Is logging to file enabled";
         private const string TooltipColor = "Color for logged classname";
         private const string TooltipContext = "Color to 'mark' logged context objects";
-        private const string TooltipRegExp = "Regular expressions with 1/0 to match logged lines and enable/disable their logging";
+
+        private const string TooltipRegExp =
+            "Regular expressions with value 1 or 0 to (a) match logged lines and (b) enable/disable their logging";
 
         [Header("Settings"), Tooltip(TooltipLog)] public bool _isLogToFile;
         [Tooltip(TooltipColor)] public string _colorForClassName = "white";
@@ -47,44 +49,23 @@ namespace Prg.Util
 
         [Header("Class Filter"), TextArea(5, 20), Tooltip(TooltipRegExp)] public string _loggerRules;
 
-        private static string _prefixTag;
-        private static string _suffixTag;
         private static readonly HashSet<string> LoggedTypesForEditor = new();
 
         /// <summary>
-        /// Creates a config for filtering (out) some Debug logging messages.
+        /// Creates a config logging messages.
         /// </summary>
         /// <param name="config">the config</param>
         /// <param name="showLoggedDebugTypes">callback to record all types that are suing Debug.log calls in Editor</param>
         public static void CreateLoggerFilterConfig(LoggerConfig config, Action<string> showLoggedDebugTypes)
         {
-            // 'colorContextTag' will be added to Editor log and filtered out from log file.
-            var colorContextTag = string.IsNullOrWhiteSpace(config._colorForContextTagName)
-                ? null
-                : $" <color={config._colorForContextTagName}>*</color>";
             if (config._isLogToFile)
             {
-                CreateLogWriter(colorContextTag);
+                CreateLogWriter();
             }
             if (AppPlatform.IsEditor)
             {
-                // Log color for Editor log.
-                // https://docs.unity3d.com/560/Documentation/Manual/StyledText.html
-                var trimmed = string.IsNullOrEmpty(config._colorForClassName) ? string.Empty : config._colorForClassName.Trim();
-                if (trimmed.Length > 0)
-                {
-                    // This is a bit complicated because:
-                    // - Debug knows what to log and adds color to logged content that goes to UnityEngine console logger
-                    // - LogWriter receives it and needs to remove those parts that are only for console logging, like colors.
-                    _prefixTag = $"[<color={config._colorForClassName}>";
-                    _suffixTag = "</color>]";
-                    Debug.SetTagsForClassName(_prefixTag, _suffixTag);
-                    LogFileWriter.AddLogLineContentFilter(FilterClassNameForLogMessageCallback);
-                }
-                if (colorContextTag != null)
-                {
-                    Debug.SetContextTag(colorContextTag);
-                }
+                Debug.TagColor = config._colorForClassName;
+                Debug.ContextColor = config._colorForContextTagName;
                 // Clear previous run.
                 LoggedTypesForEditor.Clear();
                 showLoggedDebugTypes?.Invoke(string.Empty);
@@ -101,12 +82,11 @@ namespace Prg.Util
 #endif
             }
 
-            // Install log filter callback as last thing here.
-            Debug.AddLogLineAllowedFilter(LogLineAllowedFilterCallback);
 #if FORCE_LOG || UNITY_EDITOR
 #else
             UnityEngine.Debug.LogWarning($"NOTE! Application logging is totally disabled on platform: {Application.platform}");
 #endif
+            Debug.IsMethodAllowedFilter = LogLineAllowedFilterCallback;
             return;
 
             bool LogLineAllowedFilterCallback(MethodBase method)
@@ -137,78 +117,54 @@ namespace Prg.Util
                 return match?.IsLogged ?? true;
             }
 
-            string FilterClassNameForLogMessageCallback(string message)
+            List<RegExFilter> BuildFilter(string lines)
             {
-                return message.Replace(_prefixTag, "[").Replace(_suffixTag, "]");
+                // Note that line parsing relies on TextArea JSON serialization which I have not tested very well!
+                // - lines can start and end with "'" if content has something that needs to be "protected" during JSON parsing
+                // - JSON multiline separator is LF "\n"
+                var list = new List<RegExFilter>();
+                if (lines.StartsWith("'") && lines.EndsWith("'"))
+                {
+                    lines = lines.Substring(1, lines.Length - 2);
+                }
+                foreach (var token in lines.Split('\n'))
+                {
+                    var line = token.Trim();
+                    if (line.StartsWith("#") || string.IsNullOrEmpty(line))
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        var parts = line.Split('=');
+                        if (parts.Length != 2)
+                        {
+                            UnityEngine.Debug.LogError($"invalid Regex pattern '{line}', are you missing '=' here");
+                            continue;
+                        }
+                        if (!int.TryParse(parts[1].Trim(), out var loggedValue))
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"invalid Regex pattern '{line}', not a valid integer after '=' sign");
+                            continue;
+                        }
+                        var isLogged = loggedValue != 0;
+                        var filter = new RegExFilter(parts[0].Trim(), isLogged);
+                        list.Add(filter);
+                    }
+                    catch (Exception e)
+                    {
+                        UnityEngine.Debug.LogError($"invalid Regex pattern '{line}': {e.GetType().Name} {e.Message}");
+                    }
+                }
+                return list;
             }
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
-        private static void CreateLogWriter(string colorContextTag)
+        private static void CreateLogWriter()
         {
             LogWriterLoader.LoadLogWriter();
-            LogFileWriter.AddLogLineContentFilter(LogLineContentFilter);
-            return;
-
-            string LogLineContentFilter(string message)
-            {
-                if (string.IsNullOrEmpty(message))
-                {
-                    return message;
-                }
-                if (message.Contains("\n") || message.Contains("\r") || message.Contains("\t"))
-                {
-                    // This is mainly to remove "formatting" form Photon ToString and ToStringFull messages and make then one liners!
-                    message = message.Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
-                }
-                if (message.EndsWith(colorContextTag))
-                {
-                    message = message.Substring(0, message.Length - colorContextTag.Length);
-                }
-                return message;
-            }
-        }
-
-        private static List<RegExFilter> BuildFilter(string lines)
-        {
-            // Note that line parsing relies on TextArea JSON serialization which I have not tested very well!
-            // - lines can start and end with "'" if content has something that needs to be "protected" during JSON parsing
-            // - JSON multiline separator is LF "\n"
-            var list = new List<RegExFilter>();
-            if (lines.StartsWith("'") && lines.EndsWith("'"))
-            {
-                lines = lines.Substring(1, lines.Length - 2);
-            }
-            foreach (var token in lines.Split('\n'))
-            {
-                var line = token.Trim();
-                if (line.StartsWith("#") || string.IsNullOrEmpty(line))
-                {
-                    continue;
-                }
-                try
-                {
-                    var parts = line.Split('=');
-                    if (parts.Length != 2)
-                    {
-                        UnityEngine.Debug.LogError($"invalid Regex pattern '{line}', are you missing '=' here");
-                        continue;
-                    }
-                    if (!int.TryParse(parts[1].Trim(), out var loggedValue))
-                    {
-                        UnityEngine.Debug.LogError($"invalid Regex pattern '{line}', not a valid integer after '=' sign");
-                        continue;
-                    }
-                    var isLogged = loggedValue != 0;
-                    var filter = new RegExFilter(parts[0].Trim(), isLogged);
-                    list.Add(filter);
-                }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogError($"invalid Regex pattern '{line}': {e.GetType().Name} {e.Message}");
-                }
-            }
-            return list;
         }
     }
 }

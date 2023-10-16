@@ -35,8 +35,9 @@ namespace Prg
             // Manual reset if UNITY Domain Reloading is disabled.
             _mainThreadId = Thread.CurrentThread.ManagedThreadId;
             _currentFrameCount = 0;
-            RemoveTags();
-            _logLineAllowedFilter = null;
+            TagColor = "white";
+            ContextColor = "orange";
+            IsMethodAllowedFilter = _ => true;
             CachedLogLineMethods.Clear();
             SetEditorStatus();
         }
@@ -46,84 +47,46 @@ namespace Prg
         {
             // Reset log line filtering and caching in Editor when we switch form Player Mode to Edit Mode.
 #if UNITY_EDITOR
-            void LogPlayModeState(PlayModeStateChange state)
-            {
-                if (state == PlayModeStateChange.EnteredEditMode)
-                {
-                    _logLineAllowedFilter = null;
-                    CachedLogLineMethods.Clear();
-                }
-            }
-
             if (_isEditorHook)
             {
                 return;
             }
             _isEditorHook = true;
             EditorApplication.playModeStateChanged += LogPlayModeState;
+            return;
+
+            void LogPlayModeState(PlayModeStateChange state)
+            {
+                if (state == PlayModeStateChange.EnteredEditMode)
+                {
+                    CachedLogLineMethods.Clear();
+                }
+            }
 #endif
         }
 
         #region Log formatting and filtering support
 
-        private static bool _isClassNamePrefix;
-        private static string _prefixTag;
-        private static string _suffixTag;
-        private static string _contextTag = string.Empty;
-
         private static bool _isEditorHook;
         private static int _mainThreadId;
         private static int _currentFrameCount;
 
-        private static void RemoveTags()
-        {
-            _isClassNamePrefix = false;
-            _prefixTag = null;
-            _suffixTag = null;
-            _contextTag = string.Empty;
-        }
+        /// <summary>
+        /// Color name for debug log tag.
+        /// </summary>
+        public static string TagColor = "white";
 
         /// <summary>
-        /// Filters log lines based on method class, name or other method properties.
+        /// Color name for debug context 'marker' in tag.
         /// </summary>
-        private static Func<MethodBase, bool> _logLineAllowedFilter;
+        public static string ContextColor = "orange";
 
         /// <summary>
-        /// Cache for tracking whether method should be logged or not.
+        /// Filter to accept or reject logging based on method.
         /// </summary>
-        private static readonly Dictionary<MethodBase, bool> CachedLogLineMethods = new();
+        public static Func<MethodBase, bool> IsMethodAllowedFilter = _ => true;
 
-        /// <summary>
-        /// Adds log line filter.
-        /// </summary>
-        [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
-        public static void AddLogLineAllowedFilter(Func<MethodBase, bool> filter)
-        {
-            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
-            Assert.IsNull(_logLineAllowedFilter);
-            _logLineAllowedFilter = filter;
-        }
-
-        /// <summary>
-        /// Sets tag markers for class name field in debug log line.
-        /// </summary>
-        /// <remarks>
-        /// See: https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html
-        /// and
-        /// https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/StyledText.html#ColorNames
-        /// </remarks>
-        [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
-        public static void SetTagsForClassName(string prefixTag, string suffixTag)
-        {
-            _isClassNamePrefix = !string.IsNullOrEmpty(prefixTag) || string.IsNullOrEmpty(suffixTag);
-            _prefixTag = prefixTag ?? string.Empty;
-            _suffixTag = suffixTag ?? string.Empty;
-        }
-
-        public static void SetContextTag(string contextTag)
-        {
-            _contextTag = contextTag;
-        }
+        private static readonly Dictionary<MethodBase, Tuple<bool, string>> CachedLogLineMethods = new();
 
         private static int GetSafeFrameCount()
         {
@@ -132,6 +95,96 @@ namespace Prg
                 _currentFrameCount = Time.frameCount % 1000;
             }
             return _currentFrameCount;
+        }
+
+        /// <summary>
+        /// Remove UNITY Editor color decorations.
+        /// </summary>
+        /// <param name="message">decorated message</param>
+        /// <returns>undecorated message</returns>
+        public static string FilterFormattedMessage(string message)
+        {
+            // Remove full context marker first.
+            return message
+                .Replace($"<color={ContextColor}>◆</color>", "")
+                .Replace($"[<color={TagColor}>", "")
+                .Replace("</color>]", "");
+        }
+
+        /// <summary>
+        /// Format message and log it.
+        /// </summary>
+        /// <param name="logType">UNITY log type</param>
+        /// <param name="message">message to log</param>
+        /// <param name="context">UNITY context aka GameObject or similar selectable in Editor</param>
+        /// <param name="memberName">Optional C# compiler generated caller name</param>
+        /// <param name="method">Optional C# method e.g. from callstack</param>
+        public static void FormatMessage(LogType logType, string message, Object context,
+            string memberName = null, MethodBase method = null)
+        {
+            string caller = null;
+            if (!GetClassName())
+            {
+                return;
+            }
+            var tag =
+                $"{GetSafeFrameCount()} [<color={TagColor}>{caller}</color>]{(context != null ? $"<color={ContextColor}>◆</color>" : "")}";
+            UnityEngine.Debug.unityLogger.Log(logType, tag, message, context);
+            return;
+
+            bool GetClassName()
+            {
+                if (method == null)
+                {
+                    caller = memberName ?? logType.ToString();
+                    return true;
+                }
+                if (CachedLogLineMethods.TryGetValue(method, out var cached))
+                {
+                    if (!cached.Item1)
+                    {
+                        return false;
+                    }
+                    caller = cached.Item2;
+                    return true;
+                }
+                var isAllowed = IsMethodAllowedFilter(method);
+                caller = GetCallerName();
+                CachedLogLineMethods.Add(method, new Tuple<bool, string>(isAllowed, caller));
+                return isAllowed;
+            }
+
+            string GetCallerName()
+            {
+                var className = method.ReflectedType?.Name ?? "CLASS";
+                if (className.StartsWith("<"))
+                {
+                    // For anonymous types we try its parent type.
+                    className = method.ReflectedType?.DeclaringType?.Name ?? "CLASS";
+                }
+                var methodName = method.Name;
+                if (!methodName.StartsWith("<"))
+                {
+                    return $"{className}.{methodName}";
+                }
+                // Local methods are compiled to internal static methods with a name of the following form:
+                // <Name1>g__Name2|x_y
+                // Name1 is the name of the surrounding method. Name2 is the name of the local method.
+                const string methodPrefix = ">g__";
+                const string methodSuffix = "|";
+                var pos1 = methodName.IndexOf(methodPrefix, StringComparison.Ordinal);
+                if (pos1 > 0)
+                {
+                    pos1 += methodPrefix.Length;
+                    var pos2 = methodName.IndexOf(methodSuffix, pos1, StringComparison.Ordinal);
+                    if (pos2 > 0)
+                    {
+                        var localName = $">{methodName.Substring(pos1, pos2 - pos1)}";
+                        methodName = memberName == null ? localName : memberName + localName;
+                    }
+                }
+                return $"{className}.{methodName}";
+            }
         }
 
         #endregion
@@ -185,56 +238,7 @@ namespace Prg
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void Log(string message, Object context = null, [CallerMemberName] string memberName = null)
         {
-            var frame = new StackFrame(1);
-            var method = frame.GetMethod();
-            if (method == null || method.ReflectedType == null)
-            {
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)message, context);
-                return;
-            }
-            if (!IsMethodAllowedForLog(method))
-            {
-                return;
-            }
-            var prefix = GetPrefix(method, memberName);
-            if (AppPlatform.IsEditor)
-            {
-                var contextTag = context != null ? _contextTag : string.Empty;
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)$"{prefix}{message}{contextTag}", context);
-            }
-            else
-            {
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)$"{prefix}{message}", context);
-            }
-        }
-
-        /// <summary>
-        /// Special version for log filters to use.
-        /// </summary>
-        [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
-        public static void Log(string message, Object context, int skipFrames, string memberName)
-        {
-            var frame = new StackFrame(skipFrames);
-            var method = frame.GetMethod();
-            if (method == null || method.ReflectedType == null)
-            {
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)message, context);
-                return;
-            }
-            if (!IsMethodAllowedForLog(method))
-            {
-                return;
-            }
-            var prefix = GetPrefix(method, memberName);
-            if (AppPlatform.IsEditor)
-            {
-                var contextTag = context != null ? _contextTag : string.Empty;
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)$"{prefix}{message}{contextTag}", context);
-            }
-            else
-            {
-                UnityEngine.Debug.unityLogger.Log(LogType.Log, (object)$"{prefix}{message}", context);
-            }
+            FormatMessage(LogType.Log, message, context, memberName, new StackFrame(1).GetMethod());
         }
 
         /// <summary>
@@ -243,160 +247,53 @@ namespace Prg
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void LogFormat(string format, params object[] args)
         {
-            var frame = new StackFrame(1);
-            var method = frame.GetMethod();
-            if (method == null || method.ReflectedType == null)
-            {
-                UnityEngine.Debug.unityLogger.LogFormat(LogType.Log, format, args);
-                return;
-            }
-            if (!IsMethodAllowedForLog(method))
-            {
-                return;
-            }
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Log, $"{GetPrefix(method)}{format}", args);
+            FormatMessage(LogType.Log, string.Format(format, args), null, null, new StackFrame(1).GetMethod());
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void LogFormat(Object context, string format, params object[] args)
         {
-            var frame = new StackFrame(1);
-            var method = frame.GetMethod();
-            if (method == null || method.ReflectedType == null)
-            {
-                UnityEngine.Debug.unityLogger.LogFormat(LogType.Log, context, format, args);
-                return;
-            }
-            if (!IsMethodAllowedForLog(method))
-            {
-                return;
-            }
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Log, context, $"{GetPrefix(method)}{format}", args);
+            FormatMessage(LogType.Log, string.Format(format, args), context, null, new StackFrame(1).GetMethod());
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void LogWarning(string message, Object context = null)
         {
-            UnityEngine.Debug.unityLogger.Log(LogType.Warning, (object)message, context);
+            FormatMessage(LogType.Warning, message, context, null, new StackFrame(1).GetMethod());
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void LogWarningFormat(string format, params object[] args)
         {
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Warning, format, args);
+            FormatMessage(LogType.Warning, string.Format(format, args), null, null, new StackFrame(1).GetMethod());
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void LogWarningFormat(Object context, string format, params object[] args)
         {
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Warning, context, format, args);
+            FormatMessage(LogType.Warning, string.Format(format, args), context, null, new StackFrame(1).GetMethod());
         }
-
-        public static void LogError(object message) => UnityEngine.Debug.unityLogger.Log(LogType.Error, message);
 
         public static void LogError(string message, Object context = null)
         {
-            UnityEngine.Debug.unityLogger.Log(LogType.Error, (object)message, context);
+            FormatMessage(LogType.Error, message, context, null, new StackFrame(1).GetMethod());
         }
 
         public static void LogErrorFormat(string format, params object[] args)
         {
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Error, format, args);
+            FormatMessage(LogType.Error, string.Format(format, args), null, null, new StackFrame(1).GetMethod());
         }
 
         public static void LogErrorFormat(Object context, string format, params object[] args)
         {
-            UnityEngine.Debug.unityLogger.LogFormat(LogType.Error, context, format, args);
+            FormatMessage(LogType.Error, string.Format(format, args), context, null, new StackFrame(1).GetMethod());
         }
 
         public static void LogException(Exception exception)
         {
+            var message = $"{exception.GetType()} : {exception.Message}";
+            FormatMessage(LogType.Warning, message, null, null, new StackFrame(1).GetMethod());
             UnityEngine.Debug.unityLogger.LogException(exception);
-        }
-
-        #endregion
-
-        #region Static helpers
-
-        private static string GetPrefix(MemberInfo method, string memberName = null)
-        {
-            var className = method.ReflectedType?.Name ?? nameof(Debug);
-            if (className.StartsWith("<"))
-            {
-                // For anonymous types we try its parent type.
-                className = method.ReflectedType?.DeclaringType?.Name ?? nameof(Debug);
-            }
-            var methodName = method.Name;
-            if (methodName.StartsWith("<"))
-            {
-                // Local methods are compiled to internal static methods with a name of the following form:
-                // <Name1>g__Name2|x_y
-                // Name1 is the name of the surrounding method. Name2 is the name of the local method.
-                const string methodPrefix = ">g__";
-                const string methodSuffix = "|";
-                var pos1 = methodName.IndexOf(methodPrefix, StringComparison.Ordinal);
-                if (pos1 > 0)
-                {
-                    pos1 += methodPrefix.Length;
-                    var pos2 = methodName.IndexOf(methodSuffix, pos1, StringComparison.Ordinal);
-                    if (pos2 > 0)
-                    {
-                        var localName = $">{methodName.Substring(pos1, pos2 - pos1)}";
-                        if (memberName == null)
-                        {
-                            memberName = localName;
-                        }
-                        else
-                        {
-                            memberName += localName;
-                        }
-                    }
-                }
-            }
-            var frameCount = GetSafeFrameCount();
-            if (memberName != null)
-            {
-                return _isClassNamePrefix
-                    ? $"{frameCount} {_prefixTag}{className}.{memberName}{_suffixTag} "
-                    : $"{frameCount} [{className}.{memberName}] ";
-            }
-            return _isClassNamePrefix
-                ? $"{frameCount} {_prefixTag}{className}{_suffixTag} "
-                : $"{frameCount} [{className}] ";
-        }
-
-        private static bool IsMethodAllowedForLog(MethodBase method)
-        {
-            if (_logLineAllowedFilter == null)
-            {
-                return true;
-            }
-            if (CachedLogLineMethods.TryGetValue(method, out var isAllowed))
-            {
-                return isAllowed;
-            }
-            isAllowed = _logLineAllowedFilter(method);
-            TryAddCachedMethod();
-            return isAllowed;
-
-            // Local function to make code more readable.
-            void TryAddCachedMethod()
-            {
-                // Dictionary is not thread safe - so we guard it without locking!
-                if (CachedLogLineMethods.ContainsKey(method))
-                {
-                    return;
-                }
-                // On rare cases some other thread might add the same method before us - and it is ok.
-                try
-                {
-                    CachedLogLineMethods.Add(method, isAllowed);
-                }
-                catch (ArgumentException)
-                {
-                    // Swallow and ignore - An element with the same key already exists (has been added just before us).
-                }
-            }
         }
 
         #endregion

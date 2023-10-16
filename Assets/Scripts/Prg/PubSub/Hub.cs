@@ -106,10 +106,11 @@ namespace Prg.PubSub
                 }
             }
         }
-
 #if PUBSUB_THREADS
         private readonly object _locker = new();
 #else
+        public static void SetMainThreadId(int threadId) => _mainThreadId = threadId;
+
         private static int _mainThreadId;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -119,6 +120,7 @@ namespace Prg.PubSub
             _mainThreadId = Thread.CurrentThread.ManagedThreadId;
         }
 #endif
+
         private readonly List<Handler> _handlers = new();
 
         public void DumpHandlerCount()

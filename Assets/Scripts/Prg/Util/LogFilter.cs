@@ -20,7 +20,7 @@ namespace Prg.Util
             }
             _prevMessage = message;
             // Actual caller is one more level up!
-            Debug.Log(message, context, 2, memberName);
+            Debug.FormatMessage(LogType.Log, message, context, memberName, new StackFrame(2).GetMethod());
         }
     }
 }

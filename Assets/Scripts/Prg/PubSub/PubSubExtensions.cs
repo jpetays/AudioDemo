@@ -41,6 +41,14 @@ namespace Prg.PubSub
             }
         }
 
+        public static void SetMainThreadId(int threadId)
+        {
+#if PUBSUB_THREADS
+#else
+            Hub.SetMainThreadId(threadId);
+#endif
+        }
+
         /// <summary>
         /// Gets default hub for this subscriber.
         /// </summary>
@@ -76,7 +84,7 @@ namespace Prg.PubSub
         }
 
         /// <summary>
-        /// Unsubscribes to all messages. 
+        /// Unsubscribes to all messages.
         /// </summary>
         /// <param name="subscriber">The subscriber</param>
         public static void Unsubscribe(this object subscriber)
@@ -85,7 +93,7 @@ namespace Prg.PubSub
         }
 
         /// <summary>
-        /// Unsubscribes to messages of type <c>T</c>. 
+        /// Unsubscribes to messages of type <c>T</c>.
         /// </summary>
         /// <param name="subscriber">The subscriber</param>
         /// <typeparam name="T">Type of the message</typeparam>

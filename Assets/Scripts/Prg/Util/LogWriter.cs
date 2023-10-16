@@ -58,14 +58,6 @@ namespace Prg.Util
 
         private static LogFileWriter _instance;
 
-        private static Func<string, string> _logLineContentFilter;
-
-        public static void AddLogLineContentFilter(Func<string, string> filter)
-        {
-            // By design there is now *no way* to remove a filter once it has been installed.
-            _logLineContentFilter += filter;
-        }
-
         public string Filename { get; }
 
         public static LogFileWriter CreateLogFileWriter() => new();
@@ -126,7 +118,6 @@ namespace Prg.Util
                 _writer.Close();
                 _writer = null;
             }
-            _logLineContentFilter = null;
             Application.logMessageReceivedThreaded -= UnityLogCallback;
             //UnityEngine.Debug.Log($"LogWriter Close file {Filename}");
         }
@@ -151,7 +142,7 @@ namespace Prg.Util
         {
             lock (Lock)
             {
-                if (logString.Equals(_prevLogString, StringComparison.Ordinal) && type != LogType.Error)
+                if (type != LogType.Error && logString.Equals(_prevLogString, StringComparison.Ordinal))
                 {
                     // Filter away messages that comes in every frame like:
                     // There are no audio listeners in the scene. Please ensure there is always one audio listener in the scene
@@ -166,23 +157,8 @@ namespace Prg.Util
                     _prevLogLineCount = 0;
                 }
                 _prevLogString = logString;
-                if (_logLineContentFilter != null)
-                {
-                    // As we can modify the input parameter on the fly we must call each delegate separately with correct input.
-                    // - avoid DynamicInvoke because it can be order of magnitude slower than "function pointer".
-                    var invocationList = _logLineContentFilter.GetInvocationList();
-                    if (invocationList.Length == 1)
-                    {
-                        logString = _logLineContentFilter(logString);
-                    }
-                    else
-                    {
-                        foreach (var callback in invocationList)
-                        {
-                            logString = callback.DynamicInvoke(logString) as string;
-                        }
-                    }
-                }
+                // Remove UNITY Console log tag (color) decorations.
+                logString = Debug.FilterFormattedMessage(logString);
                 // Reset builder
                 Builder.Length = 0;
 
