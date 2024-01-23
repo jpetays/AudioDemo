@@ -691,7 +691,8 @@ PlayerSettings:
   webGLMemoryGeometricGrowthCap: 96
   webGLPowerPreference: 2
   scriptingDefineSymbols:
-    Android: FORCE_LOG_X
+    Android: PRG_DEBUG;FORCE_LOG_X
+    Standalone: PRG_DEBUG;FORCE_LOG_X
     WebGL: PRG_DEBUG;FORCE_LOG_X
   additionalCompilerArguments: {}
   platformArchitecture: {}
