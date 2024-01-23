@@ -1,3 +1,4 @@
+#if PRG_DEBUG
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +8,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Assertions;
 using Object = UnityEngine.Object;
 
 namespace Prg
@@ -35,10 +35,6 @@ namespace Prg
             // Manual reset if UNITY Domain Reloading is disabled.
             _mainThreadId = Thread.CurrentThread.ManagedThreadId;
             _currentFrameCount = 0;
-            TagColor = "white";
-            ContextColor = "orange";
-            IsMethodAllowedFilter = _ => true;
-            CachedLogLineMethods.Clear();
             SetEditorStatus();
         }
 
@@ -67,19 +63,52 @@ namespace Prg
 
         #region Log formatting and filtering support
 
-        private static bool _isEditorHook;
+        private const string UnicodeBullet = "•";
         private static int _mainThreadId;
         private static int _currentFrameCount;
+        private static bool _isEditorHook;
+
+        static Debug()
+        {
+            // Set initial state for console rich text colours etc..
+            TagColor = "white";
+            ContextColor = "blue";
+            ContextChar = UnicodeBullet;
+        }
 
         /// <summary>
         /// Color name for debug log tag.
         /// </summary>
-        public static string TagColor = "white";
+        public static string TagColor
+        {
+            set => _tagColorPrefix = $"<color={value}>";
+        }
 
         /// <summary>
         /// Color name for debug context 'marker' in tag.
         /// </summary>
-        public static string ContextColor = "orange";
+        public static string ContextColor
+        {
+            set
+            {
+                _contextColor = value;
+                _contextMarker = $"<color={_contextColor}>{_contextChar}</color>";
+            }
+        }
+
+        public static string ContextChar
+        {
+            set
+            {
+                _contextChar = value?.Length > 0 ? value : "*";
+                _contextMarker = $"<color={_contextColor}>{_contextChar}</color>";
+            }
+        }
+
+        private static string _tagColorPrefix;
+        private static string _contextColor;
+        private static string _contextChar;
+        private static string _contextMarker;
 
         /// <summary>
         /// Filter to accept or reject logging based on method.
@@ -88,7 +117,7 @@ namespace Prg
 
         private static readonly Dictionary<MethodBase, Tuple<bool, string>> CachedLogLineMethods = new();
 
-        private static int GetSafeFrameCount()
+        public static int GetSafeFrameCount()
         {
             if (_mainThreadId == Thread.CurrentThread.ManagedThreadId)
             {
@@ -104,11 +133,28 @@ namespace Prg
         /// <returns>undecorated message</returns>
         public static string FilterFormattedMessage(string message)
         {
-            // Remove full context marker first.
-            return message
-                .Replace($"<color={ContextColor}>◆</color>", "")
-                .Replace($"[<color={TagColor}>", "")
-                .Replace("</color>]", "");
+            // Remove all known console specific parts first.
+            message = message
+                .Replace(_contextMarker, "")
+                .Replace(_tagColorPrefix, "")
+                .Replace("</color>", "");
+            // Remove color start tags, if any.
+            const string colorPrefix = "<color=";
+            const string colorSuffix = ">";
+            var pos1 = message.IndexOf(colorPrefix, StringComparison.Ordinal);
+            while (pos1 >= 0)
+            {
+                var pos2 = message.IndexOf(colorSuffix, pos1, StringComparison.Ordinal);
+                if (pos2 <= 0)
+                {
+                    break;
+                }
+                pos2 += colorSuffix.Length;
+                var replacement = message.Substring(pos1, pos2 - pos1);
+                message = message.Replace(replacement, "");
+                pos1 = message.IndexOf(colorPrefix, StringComparison.Ordinal);
+            }
+            return message;
         }
 
         /// <summary>
@@ -128,7 +174,7 @@ namespace Prg
                 return;
             }
             var tag =
-                $"{GetSafeFrameCount()} [<color={TagColor}>{caller}</color>]{(context != null ? $"<color={ContextColor}>◆</color>" : "")}";
+                $"{GetSafeFrameCount()} [{_tagColorPrefix}{caller}</color>]{(context != null ? _contextMarker : string.Empty)}";
             UnityEngine.Debug.unityLogger.Log(logType, tag, message, context);
             return;
 
@@ -156,7 +202,8 @@ namespace Prg
 
             string GetCallerName()
             {
-                var className = method.ReflectedType?.Name ?? "CLASS";
+                var reflectedType = method.ReflectedType?.Name ?? "CLASS";
+                var className = reflectedType;
                 if (className.StartsWith("<"))
                 {
                     // For anonymous types we try its parent type.
@@ -165,25 +212,78 @@ namespace Prg
                 var methodName = method.Name;
                 if (!methodName.StartsWith("<"))
                 {
-                    return $"{className}.{methodName}";
-                }
-                // Local methods are compiled to internal static methods with a name of the following form:
-                // <Name1>g__Name2|x_y
-                // Name1 is the name of the surrounding method. Name2 is the name of the local method.
-                const string methodPrefix = ">g__";
-                const string methodSuffix = "|";
-                var pos1 = methodName.IndexOf(methodPrefix, StringComparison.Ordinal);
-                if (pos1 > 0)
-                {
-                    pos1 += methodPrefix.Length;
-                    var pos2 = methodName.IndexOf(methodSuffix, pos1, StringComparison.Ordinal);
-                    if (pos2 > 0)
+                    if (!reflectedType.StartsWith("<"))
                     {
-                        var localName = $">{methodName.Substring(pos1, pos2 - pos1)}";
-                        methodName = memberName == null ? localName : memberName + localName;
+                        if (methodName.Contains('.'))
+                        {
+                            // Explicit interface implementation - just grab last piece that is the method name?
+                            methodName = methodName.Split('.')[^1];
+                        }
+                        return $"{className}.{methodName}";
                     }
                 }
+                if (methodName == "MoveNext")
+                {
+                    FixIterator();
+                }
+                else
+                {
+                    FixLocalMethod();
+                }
                 return $"{className}.{methodName}";
+
+                void FixIterator()
+                {
+                    // IEnumerator methods have name "MoveNext"
+                    // <LoadServicesAsync>d__4
+                    const string enumeratorPrefix = "<";
+                    const string enumeratorSuffix = ">d__";
+                    var pos1 = reflectedType.IndexOf(enumeratorPrefix, StringComparison.Ordinal);
+                    if (pos1 >= 0)
+                    {
+                        var pos2 = reflectedType.IndexOf(enumeratorSuffix, pos1, StringComparison.Ordinal);
+                        if (pos2 > 0)
+                        {
+                            pos1 += enumeratorPrefix.Length;
+                            var iteratorName = reflectedType.Substring(pos1, pos2 - pos1);
+                            methodName = $"{iteratorName}";
+                        }
+                    }
+                }
+
+                void FixLocalMethod()
+                {
+                    // Local methods are compiled to internal static methods with a name of the following form:
+                    // <Name1>g__Name2|x_y
+                    // Name1 is the name of the surrounding method. Name2 is the name of the local method.
+                    const string localMethodPrefix = ">g__";
+                    const string localMethodSuffix = "|";
+                    var pos1 = methodName.IndexOf(localMethodPrefix, StringComparison.Ordinal);
+                    if (pos1 > 0)
+                    {
+                        pos1 += localMethodPrefix.Length;
+                        var pos2 = methodName.IndexOf(localMethodSuffix, pos1, StringComparison.Ordinal);
+                        if (pos2 > 0)
+                        {
+                            var localName = methodName.Substring(pos1, pos2 - pos1);
+                            methodName = $"{memberName}.{localName}";
+                        }
+                    }
+                    // 'Wrapped' anonymous lambda method.
+                    // <Name1>b__41_0
+                    const string lambdaMethodPrefix = "<";
+                    const string lambdaMethodSuffix = ">b__";
+                    pos1 = methodName.IndexOf(lambdaMethodPrefix, StringComparison.Ordinal);
+                    if (pos1 == 0)
+                    {
+                        pos1 += lambdaMethodPrefix.Length;
+                        var pos2 = methodName.IndexOf(lambdaMethodSuffix, pos1, StringComparison.Ordinal);
+                        if (pos2 > 0)
+                        {
+                            methodName = methodName.Substring(pos1, pos2 - pos1);
+                        }
+                    }
+                }
             }
         }
 
@@ -299,3 +399,68 @@ namespace Prg
         #endregion
     }
 }
+#else
+using System;
+using UnityEngine;
+using Object = UnityEngine.Object;
+
+namespace Prg
+{
+    public class Debug
+    {
+        public static void Break() => UnityEngine.Debug.Break();
+        public static void DebugBreak() => UnityEngine.Debug.DebugBreak();
+
+        public static void DrawLine(Vector3 start, Vector3 end, Color color, float duration, bool depthTest) =>
+            UnityEngine.Debug.DrawLine(start, end, color, duration, depthTest);
+
+        public static void DrawLine(Vector3 start, Vector3 end, Color color, float duration) =>
+            UnityEngine.Debug.DrawLine(start, end, color, duration);
+
+        public static void DrawLine(Vector3 start, Vector3 end, Color color) =>
+            UnityEngine.Debug.DrawLine(start, end, color);
+
+        public static void DrawLine(Vector3 start, Vector3 end) => UnityEngine.Debug.DrawLine(start, end);
+
+        public static void DrawRay(Vector3 start, Vector3 dir, Color color, float duration, bool depthTest) =>
+            UnityEngine.Debug.DrawRay(start, dir, color, duration, depthTest);
+
+        public static void DrawRay(Vector3 start, Vector3 dir, Color color, float duration) =>
+            UnityEngine.Debug.DrawRay(start, dir, color, duration);
+
+        public static void DrawRay(Vector3 start, Vector3 dir, Color color) =>
+            UnityEngine.Debug.DrawRay(start, dir, color);
+
+        public static void DrawRay(Vector3 start, Vector3 dir) => UnityEngine.Debug.DrawRay(start, dir);
+
+        public static void Log(string message, Object context = null) => UnityEngine.Debug.Log(message, context);
+
+        public static void LogFormat(string format, params object[] args) => UnityEngine.Debug.LogFormat(format, args);
+
+        public static void LogFormat(Object context, string format, params object[] args) =>
+            UnityEngine.Debug.LogFormat(context, format, args);
+
+        public static void LogWarning(string message, Object context = null) =>
+            UnityEngine.Debug.LogWarning(message, context);
+
+        public static void LogWarningFormat(string format, params object[] args) =>
+            UnityEngine.Debug.LogWarningFormat(format, args);
+
+        public static void LogWarningFormat(Object context, string format, params object[] args) =>
+            UnityEngine.Debug.LogWarningFormat(context, format, args);
+
+        public static void LogError(string message, Object context = null) =>
+            UnityEngine.Debug.LogError(message, context);
+
+        public static void LogErrorFormat(string format, params object[] args) =>
+            UnityEngine.Debug.LogErrorFormat(format, args);
+
+        public static void LogErrorFormat(Object context, string format, params object[] args) =>
+            UnityEngine.Debug.LogErrorFormat(context, format, args);
+
+        public static void LogException(Exception exception) => UnityEngine.Debug.LogException(exception);
+
+        public static int GetSafeFrameCount() => 0;
+    }
+}
+#endif

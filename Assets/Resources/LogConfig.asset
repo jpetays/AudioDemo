@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03ba8f7cfb4142fd8669db5f654dd9e9, type: 3}
+  m_Name: LogConfig
+  m_EditorClassIdentifier: 
+  _notes: 'LogConfig should be placed in folder
+
+    ''Resources/_local'' with name
+    ''LogConfig''.
+
+    Preferably add folder ''_local'' to .gitignore'
+  _isLogToFile: 0
+  _classNameColor: {r: 1, g: 1, b: 1, a: 1}
+  _contextTagColor: {r: 1, g: 0.5, b: 0, a: 1}
+  _contextTagChar: "\u2022"
+  _loggerRules: '.*Window.*=0
+
+    ^.*=1'
+  _classesSeenInPlayMode: 'Demo.Audio.AudioConfig
+
+    Demo.DemoLoader
+
+    Prg.Window.EscapeKeyHandler
+
+    Prg.Window.NaviButton
+
+    Prg.Window.PlatformSelector
+
+    Prg.Window.WindowActivator
+
+    Prg.Window.WindowLoader
+
+    Prg.Window.WindowManager'

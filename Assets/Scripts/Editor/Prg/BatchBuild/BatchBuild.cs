@@ -35,16 +35,8 @@ namespace Editor.Prg.BatchBuild
         // ReSharper disable once UnusedMember.Global
         internal static void BuildPlayer()
         {
-            var logWriter = LogFileWriter.CreateLogFileWriter();
-            try
-            {
-                _BuildPlayer();
-            }
-            catch (Exception)
-            {
-                logWriter.Close();
-                throw;
-            }
+            LogFileWriter.CreateLogFileWriter();
+            _BuildPlayer();
         }
 
         /// <summary>
@@ -57,16 +49,8 @@ namespace Editor.Prg.BatchBuild
         // ReSharper disable once UnusedMember.Global
         internal static void BuildPlayerPostProcessing()
         {
-            var logWriter = LogFileWriter.CreateLogFileWriter();
-            try
-            {
-                _BuildPlayerPostProcessing();
-            }
-            catch (Exception)
-            {
-                logWriter.Close();
-                throw;
-            }
+            LogFileWriter.CreateLogFileWriter();
+            _BuildPlayerPostProcessing();
         }
 
         private static void _BuildPlayer()
@@ -111,7 +95,7 @@ namespace Editor.Prg.BatchBuild
 
         private static void _BuildPlayerPostProcessing()
         {
-            LogWriterLoader.LoadLogWriter();
+            LogFileWriter.CreateLogFileWriter();
             Debug.Log($"batch_build_ start POST PROCESS in UNITY {Application.unityVersion}");
             var options = new BatchBuildOptions(Environment.GetCommandLineArgs());
             Debug.Log($"batch_build_ Options {options}");

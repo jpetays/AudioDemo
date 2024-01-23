@@ -1,47 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using UnityEngine;
 
 namespace Prg.Util
 {
-    /// <summary>
-    /// UNITY wrapper for <c>LogFileWriter</c> that catches all log messages from UNITY and writes them to a file.
-    /// </summary>
-    [DefaultExecutionOrder(-100)]
-    public class LogWriter : MonoBehaviour
-    {
-        private static LogWriter _instance;
-
-        // ReSharper disable once NotAccessedField.Local
-        [Header("Live Data"), SerializeField] private string _fileName;
-        private LogFileWriter _logFileWriter;
-
-        private void Awake()
-        {
-            if (_instance != null)
-            {
-                throw new UnityException("LogWriter already created");
-            }
-            // Register us as the singleton!
-            _instance = this;
-        }
-
-        private void OnEnable()
-        {
-            _logFileWriter = LogFileWriter.CreateLogFileWriter();
-            _fileName = _logFileWriter.Filename;
-        }
-
-        private void OnDestroy()
-        {
-            // OnApplicationQuit() comes before OnDestroy() so we are *not* interested to listen it.
-
-            _logFileWriter?.Close();
-            _instance = null;
-        }
-    }
-
     /// <summary>
     /// Simple file logger that catches all log messages from UNITY and writes them to a file.
     /// </summary>
@@ -50,36 +14,56 @@ namespace Prg.Util
         private const string LogFileSuffix = "game.log";
 
         private static readonly Encoding Encoding = PlatformUtil.Encoding;
-        private static readonly object Lock = new();
-        private static readonly StringBuilder Builder = new(500);
 
-        private static int _prevLogLineCount;
-        private static string _prevLogString = string.Empty;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void SubsystemRegistration()
+        {
+            // Manual reset if UNITY Domain Reloading is disabled.
+            if (_instance == null)
+            {
+                return;
+            }
+            _instance.Close();
+            _instance = null;
+        }
 
         private static LogFileWriter _instance;
 
-        public string Filename { get; }
-
-        public static LogFileWriter CreateLogFileWriter() => new();
+        [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
+        public static void CreateLogFileWriter()
+        {
+            if (_instance != null)
+            {
+                return;
+            }
+            Debug.Log("CreateLogFileWriter");
+            _instance = new LogFileWriter();
+        }
 
         private StreamWriter _writer;
+        private readonly object _lock = new();
+        private readonly StringBuilder _builder = new(500);
+#if PRG_DEBUG
+        private int _prevLogLineCount;
+        private string _prevLogString = string.Empty;
+#endif
 
         private LogFileWriter()
         {
+            var baseName = GetLogName();
+            var baseFileName = Path.Combine(Application.persistentDataPath, baseName);
+            var filename = baseFileName;
             try
             {
                 // We can only write safely directly under Application.persistentDataPath on all platforms!
                 // WebGL is very limited for file operations inside a browser sandbox.
-                var baseName = GetLogName();
-                var baseFileName = Path.Combine(Application.persistentDataPath, baseName);
-                Filename = baseFileName;
                 var retry = 1;
                 for (;;)
                 {
                     try
                     {
                         // Open for overwrite!
-                        _writer = new StreamWriter(Filename, false, Encoding) { AutoFlush = true };
+                        _writer = new StreamWriter(filename, false, Encoding) { AutoFlush = true };
                         break;
                     }
                     catch (IOException)
@@ -90,23 +74,22 @@ namespace Prg.Util
                             throw new UnityException("Unable to allocate log file");
                         }
                         var newSuffix = $"{retry:D2}_{LogFileSuffix}";
-                        Filename = baseFileName.Replace(LogFileSuffix, newSuffix);
+                        filename = baseFileName.Replace(LogFileSuffix, newSuffix);
                     }
                 }
                 // Show effective log filename.
                 if (AppPlatform.IsWindows)
                 {
-                    Filename = AppPlatform.ConvertToWindowsPath(Filename);
+                    filename = AppPlatform.ConvertToWindowsPath(filename);
                 }
             }
             catch (Exception x)
             {
                 _writer = null;
-                UnityEngine.Debug.LogWarning($"unable to create log file '{Filename}'");
+                UnityEngine.Debug.LogWarning($"unable to create log file '{filename}'");
                 UnityEngine.Debug.LogException(x);
                 throw;
             }
-            //UnityEngine.Debug.Log($"LogWriter Open file {Filename}");
             _instance = this;
             Application.logMessageReceivedThreaded += UnityLogCallback;
         }
@@ -119,7 +102,6 @@ namespace Prg.Util
                 _writer = null;
             }
             Application.logMessageReceivedThreaded -= UnityLogCallback;
-            //UnityEngine.Debug.Log($"LogWriter Close file {Filename}");
         }
 
         private void WriteLog(string message)
@@ -138,10 +120,11 @@ namespace Prg.Util
         /// <remarks>
         /// This is thread safe because Debug.Log can be called from background threads as well.
         /// </remarks>
-        private static void UnityLogCallback(string logString, string stackTrace, LogType type)
+        private void UnityLogCallback(string logString, string stackTrace, LogType type)
         {
-            lock (Lock)
+            lock (_lock)
             {
+#if PRG_DEBUG
                 if (type != LogType.Error && logString.Equals(_prevLogString, StringComparison.Ordinal))
                 {
                     // Filter away messages that comes in every frame like:
@@ -159,18 +142,19 @@ namespace Prg.Util
                 _prevLogString = logString;
                 // Remove UNITY Console log tag (color) decorations.
                 logString = Debug.FilterFormattedMessage(logString);
+#endif
                 // Reset builder
-                Builder.Length = 0;
+                _builder.Length = 0;
 
                 // File log has timestamp (and optionally category) before message.
-                Builder.AppendFormat("{0:HH:mm:ss.fff} ", DateTime.Now);
+                _builder.AppendFormat("{0:HH:mm:ss.fff} ", DateTime.Now);
                 if (type != LogType.Log)
                 {
-                    Builder.Append(type).Append(' ');
+                    _builder.Append(type).Append(' ');
                 }
 
-                Builder.Append(logString);
-                _instance.WriteLog(Builder.ToString());
+                _builder.Append(logString);
+                _instance.WriteLog(_builder.ToString());
                 if (type != LogType.Error && type != LogType.Exception)
                 {
                     return;
@@ -178,9 +162,9 @@ namespace Prg.Util
                 // Show stack trace only for real errors with proper call stack.
                 if (stackTrace.Length > 5)
                 {
-                    Builder.Length = 0;
-                    Builder.AppendFormat("{0:HH:mm:ss.fff}\t{1}\t{2}", DateTime.Now, "STACK", stackTrace);
-                    _instance.WriteLog(Builder.ToString());
+                    _builder.Length = 0;
+                    _builder.AppendFormat("{0:HH:mm:ss.fff}\t{1}\t{2}", DateTime.Now, "STACK", stackTrace);
+                    _instance.WriteLog(_builder.ToString());
                 }
             }
         }
@@ -197,6 +181,10 @@ namespace Prg.Util
                 var today = DateTime.Now.Day;
                 foreach (var oldFile in oldFiles)
                 {
+                    if (oldFile.Contains("editor_"))
+                    {
+                        continue;
+                    }
                     if (File.GetCreationTime(oldFile).Day != today)
                     {
                         try

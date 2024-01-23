@@ -19,18 +19,11 @@ namespace Editor.Prg.BatchBuild
 
         private static void Logged(Action action)
         {
-            var logFileWriter = LogFileWriter.CreateLogFileWriter();
-            try
-            {
-                var stopwatch = Stopwatch.StartNew();
-                action();
-                stopwatch.Stop();
-                Debug.Log($"Command took {stopwatch.Elapsed.TotalSeconds:0.0} s");
-            }
-            finally
-            {
-                logFileWriter.Close();
-            }
+            LogFileWriter.CreateLogFileWriter();
+            var stopwatch = Stopwatch.StartNew();
+            action();
+            stopwatch.Stop();
+            Debug.Log($"Command took {stopwatch.Elapsed.TotalSeconds:0.0} s");
         }
     }
 }

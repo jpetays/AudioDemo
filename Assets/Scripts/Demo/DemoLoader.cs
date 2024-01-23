@@ -2,6 +2,7 @@ using System.Collections;
 using System.Text;
 using Demo.Audio;
 using Prg;
+using Prg.Util;
 using UnityEngine;
 using Debug = Prg.Debug;
 
@@ -14,6 +15,7 @@ namespace Demo
         {
             // Manual reset if UNITY Domain Reloading is disabled.
             Debug.Log("SubsystemRegistration");
+            LogConfig.Create();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
