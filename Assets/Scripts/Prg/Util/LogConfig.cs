@@ -29,10 +29,12 @@ namespace Prg.Util
         private const string Tp3 = "Marker Color for logged Context Objects";
         private const string Tp4 = "Marker Character for logged Context Objects";
 
-        private const string Tp5 =
+        private const string Tp5 = "Ignore Case in Regular expression";
+
+        private const string Tp6 =
             "Regular expressions with int value 1 or 0 to (a) match logged lines and (b) enable/disable their logging";
 
-        private const string Tp6 = "List of classes that use Debug.Log calls in Play Mode, just for your information";
+        private const string Tp7 = "List of classes that use Debug.Log calls in Play Mode, just for your information";
 
         [Header("Notes"), Tooltip(Tp0), InspectorReadOnly] public string _notes = Tp0;
 
@@ -41,9 +43,10 @@ namespace Prg.Util
         [Tooltip(Tp3)] public Color _contextTagColor = new(1f, 0.5f, 0f, 1f);
         [Tooltip(Tp4)] public string _contextTagChar = UnicodeBullet;
 
-        [Header("Class Names Filter"), Tooltip(Tp5), TextArea(5, 20)] public string _loggerRules;
+        [Header("Class Names Filter"), Tooltip(Tp5)] public bool isIgnoreCase;
+        [Tooltip(Tp6), TextArea(5, 20)] public string _loggerRules;
 
-        [Header("Classes Seen in Last Play Mode"), Tooltip(Tp6), TextArea(5, 20)]
+        [Header("Classes Seen in Last Play Mode"), Tooltip(Tp7), TextArea(5, 20)]
         public string _classesSeenInPlayMode;
 
         [Conditional("PRG_DEBUG")]
@@ -70,9 +73,13 @@ namespace Prg.Util
             public readonly Regex Regex;
             public readonly bool IsLogged;
 
-            public RegExFilter(string regex, bool isLogged)
+            public RegExFilter(string regex, bool isLogged, bool isIgnoreCase)
             {
-                const RegexOptions regexOptions = RegexOptions.Singleline | RegexOptions.CultureInvariant;
+                var regexOptions = RegexOptions.Singleline | RegexOptions.CultureInvariant;
+                if (isIgnoreCase)
+                {
+                    regexOptions |= RegexOptions.IgnoreCase;
+                }
                 Regex = new Regex(regex, regexOptions);
                 IsLogged = isLogged;
             }
@@ -121,7 +128,7 @@ namespace Prg.Util
                 Assert.IsNotNull(logConfig._classesSeenInPlayMode);
                 // Add greedy filter to catch everything in Editor.
                 logConfig._loggerRules = GreedyFilter;
-                capturedRegExFilters.Add(new RegExFilter(GreedyFilter, true));
+                capturedRegExFilters.Add(new RegExFilter(GreedyFilter, true, logConfig.isIgnoreCase));
 #else
                 // No filtering configured, everything will be logged by default.
                 return;
@@ -195,7 +202,7 @@ namespace Prg.Util
                             continue;
                         }
                         var isLogged = loggedValue != 0;
-                        var filter = new RegExFilter(parts[0].Trim(), isLogged);
+                        var filter = new RegExFilter(parts[0].Trim(), isLogged, logConfig.isIgnoreCase);
                         list.Add(filter);
                     }
                     catch (Exception e)
