@@ -7,18 +7,19 @@ namespace Prg.Window.ScriptableObjects
     /// Scene definition for <c>WindowManager</c> and <c>SceneLoader</c>.<br />
     /// It contains UNITY scene name and flag to indicate if it is a networked game scene.
     /// </summary>
-    [CreateAssetMenu(menuName = "Prg/SceneDef", fileName = "scene")]
+    [CreateAssetMenu(menuName = "Prg/Prg/SceneDef", fileName = "scene NAME")]
     public class SceneDef : ScriptableObject
     {
         [SerializeField] private UnitySceneName _sceneName;
         [SerializeField] private bool _isNetworkScene;
 
-        public string SceneName => _sceneName._sceneName;
+        public string SceneName => _sceneName.SceneName;
         public bool IsNetworkScene => _isNetworkScene;
 
-        public bool NeedsSceneLoad()
+        public void SetSceneName(string sceneName)
         {
-            return SceneName != SceneManager.GetActiveScene().name;
+            _sceneName = new UnitySceneName();
+            _sceneName.SetSceneName(sceneName);
         }
 
         public override string ToString()

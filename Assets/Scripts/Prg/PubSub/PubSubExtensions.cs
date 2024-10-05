@@ -1,7 +1,10 @@
-﻿using System;
-using System.Diagnostics;
+﻿#if PUBSUB_THREADS
+#else
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Diagnostics;
+#endif
+using System;
 
 namespace Prg.PubSub
 {
@@ -13,7 +16,8 @@ namespace Prg.PubSub
     /// </remarks>
     public static class PubSubExtensions
     {
-        private static readonly Hub Hub = new();
+        private static readonly Hub Hub = new ();
+#if !PUBSUB_THREADS
         private static bool _isApplicationQuitting;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -40,7 +44,12 @@ namespace Prg.PubSub
                 Hub.DumpHandlerCount();
             }
         }
+#endif
 
+        /// <summary>
+        /// Set UNITY specific main thread to enforce single thread model.
+        /// </summary>
+        /// <param name="threadId">Main thread id</param>
         public static void SetMainThreadId(int threadId)
         {
 #if PUBSUB_THREADS
@@ -75,12 +84,14 @@ namespace Prg.PubSub
         /// </summary>
         /// <param name="subscriber">The subscriber</param>
         /// <param name="messageHandler">Callback to receive the message</param>
-        /// <param name="messageSelector">Predicate to filter messages</param>
+        /// <param name="messageSelector">Optional predicate to filter messages</param>
+        /// <param name="unsubscribeHandle">Optional explicit unsubscribeHandle</param>
         /// <typeparam name="T">Type of the message</typeparam>
-        public static void Subscribe<T>(this object subscriber, Action<T> messageHandler,
-            Predicate<T> messageSelector = null)
+        /// <returns>An 'unsubscribeHandle' that can be used to Unsubscribe with it</returns>
+        public static object Subscribe<T>(this object subscriber, Action<T> messageHandler,
+            Predicate<T> messageSelector = null, object unsubscribeHandle = null)
         {
-            Hub.Subscribe(subscriber, messageHandler, messageSelector);
+            return Hub.Subscribe(subscriber, messageHandler, messageSelector, unsubscribeHandle);
         }
 
         /// <summary>
@@ -95,6 +106,9 @@ namespace Prg.PubSub
         /// <summary>
         /// Unsubscribes to messages of type <c>T</c>.
         /// </summary>
+        /// <remarks>
+        /// Note that you can not specify the <c>Action</c> or <c>Predicate</c> now.
+        /// </remarks>
         /// <param name="subscriber">The subscriber</param>
         /// <typeparam name="T">Type of the message</typeparam>
         public static void Unsubscribe<T>(this object subscriber)
@@ -103,7 +117,7 @@ namespace Prg.PubSub
         }
 
         /// <summary>
-        /// Unsubscribes to messages for given message handler callback.
+        /// Unsubscribes to messages for given message handler callback signature.
         /// </summary>
         /// <param name="subscriber">The subscriber</param>
         /// <param name="messageHandler">Message handler callback subscribed to</param>
@@ -111,6 +125,16 @@ namespace Prg.PubSub
         public static void Unsubscribe<T>(this object subscriber, Action<T> messageHandler)
         {
             Hub.Unsubscribe(subscriber, messageHandler);
+        }
+
+        /// <summary>
+        /// Unsubscribes to messages with unsubscribeHandle.
+        /// </summary>
+        /// <param name="subscriber">The subscriber</param>
+        /// <param name="unsubscribeHandle">unsubscribeHandle to use</param>
+        public static void UnsubscribeListener(this object subscriber, object unsubscribeHandle)
+        {
+            Hub.UnsubscribeListener(unsubscribeHandle);
         }
     }
 }

@@ -26,12 +26,11 @@ namespace Prg.Window
         /// </summary>
         void UnRegisterGoBackHandlerOnce(Func<WindowManager.GoBackAction> handler);
 
-        
         /// <summary>
         /// Gets current (top most) window.
         /// </summary>
         WindowDef CurrentWindow { get; }
-        
+
         /// <summary>
         /// Gets current window count including pop-out windows.
         /// </summary>
@@ -61,6 +60,11 @@ namespace Prg.Window
         void Unwind(WindowDef windowDef);
 
         /// <summary>
+        /// Helper for navigation components to manage navigation target window.
+        /// </summary>
+        void UnwindNaviHelper(WindowDef naviTarget);
+
+        /// <summary>
         /// Shows given window.
         /// </summary>
         /// <remarks>
@@ -76,6 +80,6 @@ namespace Prg.Window
         /// <summary>
         /// Sets parent <c>GameObject</c> for windows so that Editor hierarchy stays clean.
         /// </summary>
-        void SetWindowsParent(GameObject windowsParent);
+        void SetWindowsParent([AllowNull] GameObject windowsParent);
     }
 }

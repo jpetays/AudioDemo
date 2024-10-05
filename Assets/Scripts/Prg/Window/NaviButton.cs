@@ -20,7 +20,7 @@ namespace Prg.Window
 
         private void Start()
         {
-            Debug.Log($"{name}", gameObject);
+            Debug.Log($"{name}", this);
             var button = GetComponent<Button>();
             if (_naviTarget == null)
             {
@@ -45,23 +45,7 @@ namespace Prg.Window
             {
                 windowManager.PopCurrentWindow();
             }
-            // Check if navigation target window is already in window stack and we area actually going back to it via button.
-            var windowCount = windowManager.WindowCount;
-            if (windowCount > 1)
-            {
-                var targetIndex = windowManager.FindIndex(_naviTarget);
-                if (targetIndex == 1)
-                {
-                    windowManager.GoBack();
-                    return;
-                }
-                if (targetIndex > 1)
-                {
-                    windowManager.Unwind(_naviTarget);
-                    windowManager.GoBack();
-                    return;
-                }
-            }
+            windowManager.UnwindNaviHelper(_naviTarget);
             windowManager.ShowWindow(_naviTarget);
         }
     }

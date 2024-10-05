@@ -177,8 +177,11 @@ namespace Editor.Prg.Dependencies
                 return;
             }
             Debug.Log(RichText.Yellow("EditorSettings.enterPlayModeOptions"));
-            Debug.Log($"{RichText.Yellow("DomainReload")}={enableDomainReload}");
-            Debug.Log($"{RichText.Yellow("SceneReload")}={enableSceneReload}");
+            Debug.Log(
+                $"{RichText.Yellow("DomainReload")}={enableDomainReload}" +
+                $" {(enableDomainReload ? RichText.Magenta("Why?") : RichText.Green("(ok)"))}");
+            Debug.Log($"{RichText.Yellow("SceneReload")}={enableSceneReload}" +
+                      $" {(enableSceneReload ? RichText.Magenta("Why?") : RichText.Green("(ok)"))}");
         }
 
         private static void UpdateAssetHistory()

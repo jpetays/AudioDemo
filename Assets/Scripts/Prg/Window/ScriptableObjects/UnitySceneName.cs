@@ -9,17 +9,21 @@ namespace Prg.Window.ScriptableObjects
     [Serializable]
     public class UnitySceneName
     {
-        public const string SceneName = nameof(_sceneName);
-        public const string SceneGuid = nameof(_sceneGuid);
+        public const string SceneNameName = nameof(_sceneName);
+        public const string SceneGuidName = nameof(_sceneGuid);
 
         /// <summary>
         /// UNITY scene name without path.
         /// </summary>
-        public string _sceneName;
+        [SerializeField] private string _sceneName;
 
         /// <summary>
         /// Scene GUID is currently not used, but just saved if need to track actual scene by its GUID arises.
         /// </summary>
         [SerializeField] private string _sceneGuid;
+
+        public string SceneName => _sceneName;
+
+        public void SetSceneName(string sceneName) => _sceneName = sceneName;
     }
 }

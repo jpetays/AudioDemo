@@ -2,7 +2,7 @@
 
 namespace Prg.Window.ScriptableObjects
 {
-    [CreateAssetMenu(menuName = "Prg/LinkToHtmlPage", fileName = "link")]
+    [CreateAssetMenu(menuName = "Prg/Prg/LinkToHtmlPage", fileName = "link NAME")]
     public class LinkToHtmlPage : ScriptableObject
     {
         [SerializeField] private string _theUrlToUse;

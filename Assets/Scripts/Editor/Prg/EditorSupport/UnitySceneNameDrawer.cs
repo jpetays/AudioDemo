@@ -82,7 +82,7 @@ namespace Editor.Prg.EditorSupport
             var lineHeight = position.height;
             var line1 = new Rect(position.x, position.y, lineWidth, lineHeight);
 
-            var sceneNameProp = property.FindPropertyRelative(UnitySceneName.SceneName);
+            var sceneNameProp = property.FindPropertyRelative(UnitySceneName.SceneNameName);
             var sceneName = sceneNameProp.stringValue;
 
             var itemIndex = _sceneList.FindIndex(x => x.SceneName == sceneName);
@@ -98,7 +98,7 @@ namespace Editor.Prg.EditorSupport
                 // Property was changed by user.
                 sceneNameProp.stringValue = _sceneList[newItemIndex].SceneName;
                 // Scene GUID is just saved for later use.
-                var sceneGuidProp = property.FindPropertyRelative(UnitySceneName.SceneGuid);
+                var sceneGuidProp = property.FindPropertyRelative(UnitySceneName.SceneGuidName);
                 sceneGuidProp.stringValue = _sceneList[newItemIndex].SceneGuid;
             }
         }

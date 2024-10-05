@@ -7,10 +7,17 @@ namespace Prg.Util
 {
     public class RaycastAll
     {
+        private readonly bool _isDebugLog;
+
         private readonly PointerEventData _uiPointerEventData = new(EventSystem.current);
         private readonly List<RaycastResult> _uiRaycastResultList = new();
 
-        public bool IsPointerOnActiveUiElement(Vector2 screenPosition, bool isDebugLog = false)
+        public RaycastAll(bool isDebugLog = false)
+        {
+            _isDebugLog = isDebugLog;
+        }
+
+        public bool IsPointerOnActiveUiElement(Vector2 screenPosition)
         {
             _uiPointerEventData.position = screenPosition;
             EventSystem.current.RaycastAll(_uiPointerEventData, _uiRaycastResultList);
@@ -18,7 +25,7 @@ namespace Prg.Util
             {
                 return false;
             }
-            if (isDebugLog)
+            if (_isDebugLog)
                 Debug.Log($"RaycastAll {_uiRaycastResultList.Count} @ {screenPosition.x:0},{screenPosition.y:0}");
             foreach (var raycastResult in _uiRaycastResultList)
             {
@@ -28,12 +35,11 @@ namespace Prg.Util
                 {
                     continue;
                 }
-                if (isDebugLog)
+                if (_isDebugLog)
                     Debug.Log($"BLOCKED {selectable.name} {screenPosition.x:0},{screenPosition.y:0}", selectable);
                 return true;
             }
             return false;
         }
-
     }
 }

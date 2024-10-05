@@ -1,10 +1,10 @@
-using System;
 using System.Collections;
 using System.Text;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -48,6 +48,26 @@ namespace Prg
     {
         #region GameObjects and Components
 
+        public static bool IsSceneObject(this GameObject instance)
+        {
+            return instance.scene.handle != 0;
+        }
+
+        public static bool IsSceneObject(this Component component)
+        {
+            return component.gameObject.scene.handle != 0;
+        }
+
+        public static bool HasParent(this GameObject gameObject)
+        {
+            return gameObject.transform.parent != null;
+        }
+
+        public static bool HasChild(this GameObject parent, GameObject other)
+        {
+            return parent.transform.HasChild(other.transform);
+        }
+
         public static T GetOrAddComponent<T>(this GameObject parent) where T : Component
         {
             var component = parent.GetComponent<T>();
@@ -65,6 +85,20 @@ namespace Prg
         {
             var rotation = isUpsideDown ? UpsideDown : NormalRotation;
             transform.rotation = rotation;
+        }
+
+        public static bool HasChild(this Transform parent, Transform other)
+        {
+            Assert.AreNotEqual(parent, other);
+            for (var i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child == other || child.HasChild(other))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         #endregion
@@ -85,6 +119,17 @@ namespace Prg
 
         #region Button
 
+        public static void SetCaptionColor(this Button button, Color color)
+        {
+            var textMeshProUGUI = button.GetComponentInChildren<TextMeshProUGUI>();
+            if (textMeshProUGUI != null)
+            {
+                textMeshProUGUI.color = color;
+                return;
+            }
+            throw new UnityException($"Button {button.GetFullPath()} does not have TextMeshProUGUI component");
+        }
+
         public static void SetCaption(this Button button, string caption)
         {
             var textMeshProUGUI = button.GetComponentInChildren<TextMeshProUGUI>();
@@ -96,7 +141,8 @@ namespace Prg
             var text = button.GetComponentInChildren<Text>();
             if (text != null)
             {
-                Debug.LogWarning($"Using deprecating 'UI/Legacy/Text' instead of 'TextMeshProUGUI' in {button.GetFullPath()}");
+                Debug.LogWarning(
+                    $"Using deprecating 'UI/Legacy/Text' instead of 'TextMeshProUGUI' in {button.GetFullPath()}");
                 text.text = caption;
                 return;
             }
@@ -120,7 +166,8 @@ namespace Prg
             var text = button.GetComponentInChildren<Text>();
             if (text != null)
             {
-                Debug.LogWarning($"Using deprecating 'UI/Legacy/Text' instead of 'TextMeshProUGUI' in {button.GetFullPath()}");
+                Debug.LogWarning(
+                    $"Using deprecating 'UI/Legacy/Text' instead of 'TextMeshProUGUI' in {button.GetFullPath()}");
                 return text.text;
             }
             var tmpText = button.GetComponentInChildren<TMP_Text>();
@@ -137,7 +184,8 @@ namespace Prg
 
         #region TrailRenderer
 
-        public static void ResetTrailRendererAfterTeleport(this TrailRenderer trailRenderer, MonoBehaviour host, int skipFrames = 2)
+        public static void ResetTrailRendererAfterTeleport(this TrailRenderer trailRenderer, MonoBehaviour host,
+            int skipFrames = 2)
         {
             IEnumerator DelayedExecute()
             {
@@ -157,32 +205,6 @@ namespace Prg
             }
 
             host.StartCoroutine(DelayedExecute());
-        }
-
-        #endregion
-
-        #region Coroutines
-
-        /// <summary>
-        /// Execute an action as coroutine on next frame.
-        /// </summary>
-        public static void ExecuteOnNextFrame(this MonoBehaviour component, Action action)
-        {
-            ExecuteAsCoroutine(component, null, action);
-        }
-
-        /// <summary>
-        /// Execute an action as coroutine with delay.
-        /// </summary>
-        public static void ExecuteAsCoroutine(this MonoBehaviour component, YieldInstruction wait, Action action)
-        {
-            IEnumerator DelayedExecute(YieldInstruction localWait, Action localAction)
-            {
-                yield return localWait;
-                localAction();
-            }
-
-            component.StartCoroutine(DelayedExecute(wait, action));
         }
 
         #endregion
@@ -233,6 +255,25 @@ namespace Prg
                 path.Insert(0, '/').Insert(0, gameObject.name);
             }
             return path.ToString();
+        }
+
+        public static string GetFullName(this Scene scene)
+        {
+            return $"[{scene.name}](#{scene.buildIndex})";
+        }
+
+        public static string GetInfo(this Collider2D other, bool enter)
+        {
+            var otherObject = other.gameObject;
+            var direction = enter ? "ENTER" : "EXIT";
+            var trigger = other.isTrigger ? " trig" : "norm";
+            return
+                $"{direction} {otherObject.name} C={trigger} T={otherObject.tag} L={LayerMask.LayerToName(otherObject.layer)}";
+        }
+
+        public static string GetInfo(this Collision2D collision, bool enter)
+        {
+            return GetInfo(collision.collider, enter);
         }
 
         #endregion

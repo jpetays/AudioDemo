@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Prg.Util;
 using Prg.Window.ScriptableObjects;
 using TMPro;
 using UnityEngine;
@@ -9,12 +10,21 @@ namespace Prg.Window
 {
     public class WindowPolicyChecker : MonoBehaviour
     {
+        private static WindowPolicies _windowPolicies;
+        private static bool _isWarning;
+        private static bool _isShowFullPath;
+
         private IEnumerator Start()
         {
-            // Wait two frames (to let things get going) before checking "window policy".
+            // Wait two frames (to let things get going) before checking "windows policies".
             yield return null;
             yield return null;
-            CheckCanvas(FindObjectOfType<Canvas>());
+            LogConfig.ForceLogging(GetType());
+            _windowPolicies = null;
+            foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                CheckCanvas(canvas);
+            }
             enabled = false;
         }
 
@@ -24,22 +34,41 @@ namespace Prg.Window
             {
                 return;
             }
-            var allowedFonts = Resources.Load<AllowedFonts>(nameof(AllowedFonts));
+            if (_windowPolicies == null)
+            {
+                _windowPolicies = Resources.Load<WindowPolicies>(nameof(WindowPolicies));
+                if (_windowPolicies == null)
+                {
+                    return;
+                }
+                _isWarning = !_windowPolicies.Fonts.LogAsError;
+                _isShowFullPath = _windowPolicies.Fonts.ShowFullPath;
+            }
+            if (_windowPolicies.Debug.AddButtonClickLogger)
+            {
+                // Button hack.
+                foreach (var button in canvas.GetComponentsInChildren<Button>(includeInactive: true))
+                {
+                    button.onClick.AddListener(() =>
+                        Debug.LogWarning($"{button.gameObject.GetFullPath()}", button));
+                }
+            }
+            var allowedFonts = _windowPolicies.Fonts;
             if (allowedFonts == null)
             {
                 return;
             }
             var knownFontNames = new List<string>();
-            if (allowedFonts._tmpFonts != null)
+            if (allowedFonts.TextMeshProFonts != null)
             {
-                foreach (var font in allowedFonts._tmpFonts)
+                foreach (var font in allowedFonts.TextMeshProFonts)
                 {
                     knownFontNames.Add(font.name);
                 }
             }
-            if (allowedFonts._fonts != null)
+            if (allowedFonts.LegacyFonts != null)
             {
-                foreach (var font in allowedFonts._fonts)
+                foreach (var font in allowedFonts.LegacyFonts)
                 {
                     knownFontNames.Add(font.name);
                 }
@@ -47,6 +76,11 @@ namespace Prg.Window
             var components = new HashSet<Component>();
             foreach (var text in canvas.GetComponentsInChildren<TextMeshProUGUI>(includeInactive: true))
             {
+                if (text.font == null)
+                {
+                    Debug.LogError($"Text font is missing from {text.gameObject.GetFullPath()}", text);
+                    continue;
+                }
                 CheckFontName(components, text, knownFontNames, text.font.name);
             }
             foreach (var text in canvas.GetComponentsInChildren<Text>(includeInactive: true))
@@ -56,17 +90,22 @@ namespace Prg.Window
             // This selects TextMeshProUGUI instances as well because they inherit from TMP_Text.
             foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(includeInactive: true))
             {
+                if (text.font == null)
+                {
+                    Debug.LogError($"Text font is missing from {text.gameObject.GetFullPath()}", text);
+                    continue;
+                }
                 CheckFontName(components, text, knownFontNames, text.font.name);
             }
         }
 
-        private static void CheckFontName(HashSet<Component> components, Component component, List<string> knownFontNames, string fontName)
+        private static void CheckFontName(HashSet<Component> components, Component component,
+            List<string> knownFontNames, string fontName)
         {
-            if (components.Contains(component))
+            if (!components.Add(component))
             {
                 return;
             }
-            components.Add(component);
             // TMP_Text is the base class for TextMeshProUGUI so we have to check both of them to be sure.
             var isTmpText = component.GetType() == typeof(TMP_Text);
             var isTextMeshProUGUI = component.GetType() == typeof(TextMeshProUGUI);
@@ -86,18 +125,20 @@ namespace Prg.Window
                 // Nothing to complain.
                 return;
             }
-            var componentText = isValidTextType ? component.name
-                : component is TMP_Text ? $"{RichText.Yellow(component.name)} <i>text type '{component.GetType().Name}' is deprecated</i>"
-                : $"{RichText.Yellow(component.name)} <i>text type '{component.GetType().Name}' is old/legacy</i>";
+            var componentName = _isShowFullPath ? component.GetFullPath() : component.name;
+            var componentText = isValidTextType
+                ? componentName
+                : component is TMP_Text
+                    ? $"{RichText.Yellow(componentName)} <i>text type '{component.GetType().Name}' is deprecated</i>"
+                    : $"{RichText.Yellow(componentName)} <i>text type '{component.GetType().Name}' is old/legacy</i>";
             var fontText = isKnownFont ? fontName : $"{RichText.Yellow(fontName)} <i>should not use this font</i>";
-            var marker = "<color=orange>*</color>";
-            if (isKnownFont)
+            if (_isWarning || isKnownFont)
             {
                 // Just warning when Text component is not TextMeshProUGUI
-                Debug.LogWarning($"{fontText} in {componentText} {marker}", component);
+                Debug.LogWarning($"{fontText} in {componentText}", component);
                 return;
             }
-            Debug.LogError($"{fontText} in {componentText} {marker}", component);
+            Debug.LogError($"{fontText} in {componentText}", component);
         }
     }
 }

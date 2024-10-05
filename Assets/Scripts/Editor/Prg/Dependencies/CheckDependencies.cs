@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Prg;
+using Prg.Util;
 using UnityEditor;
 using UnityEngine;
 using Debug = Prg.Debug;
@@ -20,10 +19,9 @@ namespace Editor.Prg.Dependencies
     {
         private const string AssetRootName = "Assets";
 
-        public static void CheckUsages()
+        public static void CheckAssetUsage(string[] selectedGuids)
         {
             Debug.Log("*");
-            var selectedGuids = Selection.assetGUIDs;
             if (selectedGuids.Length == 0)
             {
                 Debug.Log("Nothing is selected");
@@ -72,12 +70,12 @@ namespace Editor.Prg.Dependencies
                 Debug.LogWarning($"Selected object is not supported asset: {path}", asset);
                 return;
             }
-            Debug.Log($"Search dependencies for {selectedGuids.Length} assets in {string.Join(", ", validExtensions)}");
+            Debug.Log($"Search dependencies for {selectedGuids.Length} assets");
             var searchFolders = new[] { AssetRootName };
             var foundCount = new int[selectedGuids.Length];
             Array.Clear(foundCount, 0, foundCount.Length);
 
-            var assetFilters = new[] { "t:Scene", "t:Prefab", "t:ScriptableObject" };
+            var assetFilters = new[] { "t:Scene", "t:Prefab", "t:ScriptableObject", "t:AnimatorController" };
             var totalCount = 0;
             foreach (var assetFilter in assetFilters)
             {
@@ -94,7 +92,9 @@ namespace Editor.Prg.Dependencies
                 {
                     var path = AssetDatabase.GUIDToAssetPath(selectedGuids[i]);
                     var asset = AssetDatabase.LoadMainAssetAtPath(path);
-                    Debug.LogWarning($"{path} has <b>{RichText.Brown("NO dependencies")}</b> in this search", asset);
+                    Debug.LogWarning(
+                        $"{ColorSource(path)} has <b>{RichText.Brown("NO dependencies")}</b> in this search",
+                        asset);
                     noDepCount += 1;
                 }
             }
@@ -112,79 +112,23 @@ namespace Editor.Prg.Dependencies
                         ? $"has <b>{depCount} dependencies</b>"
                         : $"does not have <i>any dependencies</i> and <b>can be safely deleted</b>";
                     var asset = AssetDatabase.LoadMainAssetAtPath(path);
-                    Debug.LogWarning($"{path} {message}", asset);
+                    Debug.LogWarning($"{ColorSource(path)} {message}", asset);
                 }
             }
             if (hasShaders)
             {
-                Debug.LogWarning($"{RichText.Yellow("Shaders are referenced by name and can not be detected with this script")}");
-            }
-        }
-
-        public static void ShowFolders()
-        {
-            Debug.Log("*");
-            var paths = GetPathsForSelectedGuids();
-            if (paths == null)
-            {
-                Debug.Log("Nothing is selected");
-                return;
-            }
-            var uniquePaths = new HashSet<string>();
-            var specialPaths = new HashSet<string>();
-            foreach (var path in paths)
-            {
-                var dirname = Path.GetDirectoryName(RemoveAssetRootName(path));
-                if (path.StartsWith(AssetRootName))
-                {
-                    uniquePaths.Add(dirname);
-                }
-                else
-                {
-                    specialPaths.Add(dirname);
-                }
-            }
-            paths = uniquePaths.ToList();
-            paths.Sort();
-            foreach (var path in paths)
-            {
-                Debug.Log($"{RichText.Yellow(path)}");
-            }
-            paths = specialPaths.ToList();
-            paths.Sort();
-            foreach (var path in paths)
-            {
-                Debug.Log($"{RichText.Brown(path)}");
-            }
-        }
-
-        public static void SortSelection()
-        {
-            Debug.Log("*");
-            var paths = GetPathsForSelectedGuids();
-            if (paths == null)
-            {
-                Debug.Log("Nothing is selected");
-                return;
-            }
-            paths.Sort();
-            foreach (var path in paths)
-            {
-                var asset = AssetDatabase.LoadMainAssetAtPath(path);
-                var dirname = Path.GetDirectoryName(RemoveAssetRootName(path));
-                var filename = Path.GetFileName(path);
-                Debug.Log($"{RichText.Yellow(dirname)} {RichText.Brown(filename)}", asset);
+                Debug.LogWarning(
+                    $"{RichText.Yellow("Shaders are referenced by name and can not be detected with this script")}");
             }
         }
 
         private static int CheckForGuidInAssets(string[] selectedGuids, ref int[] foundCount, string[] assetGuids)
         {
-            var encoding = Encoding.UTF8;
             var count = 0;
             foreach (var assetGuid in assetGuids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(assetGuid);
-                var assetContent = File.ReadAllText(path, encoding);
+                var assetContent = File.ReadAllText(path, PlatformUtil.Encoding);
                 for (var guidIndex = 0; guidIndex < selectedGuids.Length; ++guidIndex)
                 {
                     var guid = selectedGuids[guidIndex];
@@ -192,7 +136,8 @@ namespace Editor.Prg.Dependencies
                     {
                         var source = AssetDatabase.GUIDToAssetPath(guid);
                         var go = AssetDatabase.LoadAssetAtPath(path, typeof(GameObject)) as GameObject;
-                        Debug.LogWarning($"{source} found in {path}", go);
+                        Debug.LogWarning($"{ColorSource(source)} found in {ColorTarget(path)}",
+                            go);
                         foundCount[guidIndex] += 1;
                         count += 1;
                     }
@@ -201,29 +146,14 @@ namespace Editor.Prg.Dependencies
             return count;
         }
 
-        private static List<string> GetPathsForSelectedGuids()
-        {
-            var selectedGuids = Selection.assetGUIDs;
-            if (selectedGuids.Length == 0)
-            {
-                return null;
-            }
-            var paths = new List<string>();
-            foreach (var t in selectedGuids)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(t);
-                paths.Add(path);
-            }
-            return paths;
-        }
+        private static string ColorSource(string filepath) => RichText.Yellow(Path.GetFileName(filepath));
 
-        private static string RemoveAssetRootName(string path)
+        private static string ColorTarget(string filepath)
         {
-            if (path.StartsWith(AssetRootName) && path[AssetRootName.Length] == '/')
-            {
-                path = path.Replace(AssetRootName, "").Substring(1);
-            }
-            return path;
+            var filename = Path.GetFileName(filepath);
+            var dirname = filepath[..^filename.Length];
+            dirname = dirname.Replace("Assets/", "");
+            return $"{dirname}{RichText.Blue(filename)}";
         }
     }
 }

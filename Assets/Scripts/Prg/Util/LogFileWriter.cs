@@ -15,30 +15,19 @@ namespace Prg.Util
 
         private static readonly Encoding Encoding = PlatformUtil.Encoding;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void SubsystemRegistration()
-        {
-            // Manual reset if UNITY Domain Reloading is disabled.
-            if (_instance == null)
-            {
-                return;
-            }
-            _instance.Close();
-            _instance = null;
-        }
-
-        private static LogFileWriter _instance;
-
         [Conditional("UNITY_EDITOR"), Conditional("FORCE_LOG")]
         public static void CreateLogFileWriter()
         {
-            if (_instance != null)
+            // Safeguard to close previous log file before creating a new one.
+            if (AppPlatform.IsWebGL)
             {
+                UnityEngine.Debug.Log("LogFileWriter is not created on WebGL");
                 return;
             }
-            Debug.Log("CreateLogFileWriter");
-            _instance = new LogFileWriter();
+            _instance = new LogFileWriter(_instance);
         }
+
+        private static LogFileWriter _instance;
 
         private StreamWriter _writer;
         private readonly object _lock = new();
@@ -48,8 +37,10 @@ namespace Prg.Util
         private string _prevLogString = string.Empty;
 #endif
 
-        private LogFileWriter()
+        private LogFileWriter(LogFileWriter previous)
         {
+            var hadPrevious = previous != null;
+            previous?.Close();
             var baseName = GetLogName();
             var baseFileName = Path.Combine(Application.persistentDataPath, baseName);
             var filename = baseFileName;
@@ -78,30 +69,36 @@ namespace Prg.Util
                     }
                 }
                 // Show effective log filename.
-                if (AppPlatform.IsWindows)
-                {
-                    filename = AppPlatform.ConvertToWindowsPath(filename);
-                }
+                filename = AppPlatform.ConvertToWindowsPath(filename);
             }
             catch (Exception x)
             {
                 _writer = null;
-                UnityEngine.Debug.LogWarning($"unable to create log file '{filename}'");
+                UnityEngine.Debug.LogWarning($"unable to create log file {filename}");
                 UnityEngine.Debug.LogException(x);
                 throw;
             }
+            if (!hadPrevious)
+            {
+                UnityEngine.Debug.Log($"log file {filename}");
+                WriteLog($"console aka Editor.log {AppPlatform.ConvertToWindowsPath(Application.consoleLogPath)}");
+            }
             _instance = this;
             Application.logMessageReceivedThreaded += UnityLogCallback;
+            Application.quitting += Close;
         }
 
-        public void Close()
+        private void Close()
         {
             if (_writer != null)
             {
                 _writer.Close();
                 _writer = null;
             }
+            // Release instance when file has been closed.
+            _instance = null;
             Application.logMessageReceivedThreaded -= UnityLogCallback;
+            Application.quitting -= Close;
         }
 
         private void WriteLog(string message)
@@ -140,8 +137,11 @@ namespace Prg.Util
                     _prevLogLineCount = 0;
                 }
                 _prevLogString = logString;
+#if UNITY_EDITOR
                 // Remove UNITY Console log tag (color) decorations.
-                logString = Debug.FilterFormattedMessage(logString);
+                // - actually this removes all text between angle brackets for any tag etc.
+                logString = RegexUtil.RemoveAllTags(logString);
+#endif
 #endif
                 // Reset builder
                 _builder.Length = 0;

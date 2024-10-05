@@ -32,7 +32,7 @@ namespace Demo
         {
             var startupMessage = new StringBuilder()
                 .Append(" Game ").Append(Application.productName)
-                .Append(" Ver ").Append(BuildInfo.Version)
+                .Append(" Ver ").Append(Application.version)
                 .Append(" Plat ").Append(AppPlatform.IsSimulator ? "Simulator" : AppPlatform.Name)
                 .Append(" Screen ").Append(AppPlatform.Resolution())
                 .ToString();

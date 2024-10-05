@@ -1,10 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using Prg;
 using Prg.Util;
 using UnityEditor;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
+using Debug = Prg.Debug;
 
 /// <summary>
 /// Convenience class for platform detection to access platform specific features.<br />
@@ -17,6 +18,8 @@ using Debug = UnityEngine.Debug;
 [SuppressMessage("ReSharper", "CheckNamespace")]
 public static class AppPlatform
 {
+    public static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
+
     /// <summary>
     /// Alias for UNITY <c>Application.isEditor</c>.
     /// </summary>
@@ -90,7 +93,9 @@ public static class AppPlatform
     /// Converts (UNITY) path separators to windows style (only on windows platform where we can have two directory separators).
     /// </summary>
     public static string ConvertToWindowsPath(string path) =>
-        path.Replace(Path.AltDirectorySeparatorChar.ToString(), Path.DirectorySeparatorChar.ToString());
+        IsWindows
+            ? path.Replace(Path.AltDirectorySeparatorChar.ToString(), Path.DirectorySeparatorChar.ToString())
+            : path;
 
     /// <summary>
     /// Gets <c>Screen</c> info with current window size (if not full screen).

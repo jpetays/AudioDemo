@@ -10,17 +10,9 @@ using System.Globalization;
 [SuppressMessage("ReSharper", "CheckNamespace")]
 public static class DateFormat
 {
-    public static string FormatMinutes(this DateTime dateTime)
-    {
+    public static string WithMinutes(this DateTime dateTime) =>
+        ((FormattableString)$"{dateTime:yyyy-MM-dd HH:mm}").ToString(CultureInfo.InvariantCulture);
 
-        FormattableString formattable = $"{dateTime:yyyy-dd-MM HH:mm}";
-        return formattable.ToString(CultureInfo.InvariantCulture);
-    }
-
-    public static string FormatSeconds(this DateTime dateTime)
-    {
-
-        FormattableString formattable = $"{dateTime:yyyy-dd-MM HH:mm:ss}";
-        return formattable.ToString(CultureInfo.InvariantCulture);
-    }
+    public static string WithSeconds(this DateTime dateTime) =>
+        ((FormattableString)$"{dateTime:yyyy-MM-dd HH:mm:ss}").ToString(CultureInfo.InvariantCulture);
 }

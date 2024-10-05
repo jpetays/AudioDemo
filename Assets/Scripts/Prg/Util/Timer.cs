@@ -82,6 +82,15 @@ namespace Prg.Util
             return this;
         }
 
+        public string StopAndRestart()
+        {
+            Assert.IsTrue(_stopwatch.IsRunning);
+            _stopwatch.Stop();
+            var elapsed = ElapsedTime;
+            _stopwatch.Restart();
+            return elapsed;
+        }
+
         public void Dispose()
         {
             if (_stopwatch.IsRunning)

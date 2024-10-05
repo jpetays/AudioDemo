@@ -9,6 +9,9 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Debug = Prg.Debug;
+#if USE_GA
+using Editor.Prg.Data;
+#endif
 
 namespace Editor.Prg.BatchBuild
 {
@@ -55,18 +58,11 @@ namespace Editor.Prg.BatchBuild
 
         private static void _BuildPlayer()
         {
-            BuildInfoUpdater.UpdateFile(PlayerSettings.Android.bundleVersionCode);
             var unityVersion = Application.unityVersion;
             Debug.Log($"batch_build_ start BUILD in UNITY {unityVersion}");
             var options = new BatchBuildOptions(Environment.GetCommandLineArgs());
             Debug.Log($"batch_build_ options {options}");
             Debug.Log($"batch_build_ LogFile {options.LogFile}");
-            if (options.IsTestRun)
-            {
-                Debug.Log("batch_build_ IsTestRun build exit 0");
-                EditorApplication.Exit(0);
-                return;
-            }
             if (!VerifyUnityVersionForBuild(unityVersion, out var editorVersion))
             {
                 Debug.Log(
@@ -75,6 +71,33 @@ namespace Editor.Prg.BatchBuild
                 return;
             }
             var timer = new Timer();
+#if USE_GA
+            var dataAnalytics = options.GameAnalytics;
+            var changed = AnalyticsSettings.CreateForPlatform(
+                options.BuildTarget, new Tuple<string, string>(dataAnalytics.gameKey, dataAnalytics.secretKey));
+            if (changed)
+            {
+                Debug.Log($"batch_build_ dataAnalytics.gameKey: {FormatUtil.PasswordToLog(dataAnalytics.gameKey)}");
+                Debug.Log($"batch_build_ dataAnalytics.secretKey: {FormatUtil.PasswordToLog(dataAnalytics.secretKey)}");
+            }
+            else
+            {
+                Debug.Log($"batch_build_ dataAnalytics using default settings for: {options.BuildTarget}");
+            }
+#endif
+            var targetName = BuildPipeline.GetBuildTargetName(options.BuildTarget);
+            var propertiesFile = $"_local_Build_{targetName}.properties";
+            var buildInfoFilename = BuildInfoUpdater.BuildInfoFilename(Application.dataPath);
+            File.WriteAllText(propertiesFile,
+                BuildInfoUpdater.CreateLocalProperties(
+                    Application.version, PlayerSettings.Android.bundleVersionCode,
+                    BuildInfoUpdater.GetPatchValue(buildInfoFilename), targetName));
+            if (options.IsTestRun)
+            {
+                Debug.Log("batch_build_ IsTestRun build exit 0");
+                EditorApplication.Exit(0);
+                return;
+            }
             var buildReport = BuildPLayer(options);
             var buildResult = buildReport.summary.result;
             if (options.IsBuildReport && buildResult == BuildResult.Succeeded)
@@ -130,14 +153,17 @@ namespace Editor.Prg.BatchBuild
             var jsResult = SafeReplaceFileExtension(options.LogFile, ".log", ".build.result.js");
             BatchBuildResult.SaveBuildResult(buildReportAssets, buildReportLog, projectFiles, jsResult);
 
+            // Create full HTML report.
+            var buildInfoFilename = BuildInfoUpdater.BuildInfoFilename(Application.dataPath);
+            var patchValue = BuildInfoUpdater.GetPatchValue(buildInfoFilename);
+            Debug.Log($"batch_build_ patchValue {patchValue}");
+            BuildReportAnalyzer.HtmlBuildReportFull(null, $"{patchValue}");
             timer.Stop();
             Debug.Log($"batch_build_ exit time {timer.ElapsedTime}");
         }
 
         private static BuildReport BuildPLayer(BatchBuildOptions options)
         {
-            SavedWebGlSettings savedWebGlSettings = null;
-
             var scenes = EditorBuildSettings.scenes
                 .Where(x => x.enabled)
                 .Select(x => x.path)
@@ -158,7 +184,6 @@ namespace Editor.Prg.BatchBuild
             Debug.Log($"batch_build_ build version: {Application.version}");
             Debug.Log($"batch_build_ build bundleVersionCode: {PlayerSettings.Android.bundleVersionCode}");
             Debug.Log($"batch_build_ build output: {buildPlayerOptions.locationPathName}");
-            Debug.Log($"batch_build_ defines:\r\n{string.Join("\r\n", defines)}");
 
             // General settings we enforce for any build.
             PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
@@ -168,29 +193,31 @@ namespace Editor.Prg.BatchBuild
             {
                 case BuildTarget.Android:
                 {
-                    // Android setting we enforce.
+                    // Android settings we enforce.
                     PlayerSettings.Android.minifyRelease = true;
                     PlayerSettings.Android.useCustomKeystore = true;
                     Debug.Log($"batch_build_ Android.minifyRelease: {PlayerSettings.Android.minifyRelease}");
                     Debug.Log($"batch_build_ Android.useCustomKeystore: {PlayerSettings.Android.useCustomKeystore}");
                     if (PlayerSettings.Android.useCustomKeystore)
                     {
-                        // Build Manager is responsible for these Editor settings and how they are managed in the project.
-                        PlayerSettings.Android.keyaliasName = options.Android.keyaliasName;
+                        // Project keystore:
                         PlayerSettings.Android.keystoreName = options.Android.keystoreName;
-                        Debug.Log($"batch_build_ Android.keyaliasName: {PlayerSettings.Android.keyaliasName}");
+                        PlayerSettings.keystorePass = options.Android.keystorePassword;
+                        // Project key:
+                        PlayerSettings.Android.keyaliasName = options.Android.keyaliasName;
+                        PlayerSettings.keyaliasPass = options.Android.aliasPassword;
+
                         Debug.Log($"batch_build_ Android.keystoreName: {PlayerSettings.Android.keystoreName} " +
                                   $"Exists={File.Exists(PlayerSettings.Android.keystoreName)}");
-                        var passwordFolder = Path.GetDirectoryName(options.Android.keystoreName);
-                        PlayerSettings.keystorePass = GetLocalPasswordFor(passwordFolder, "keystore_password");
-                        PlayerSettings.keyaliasPass = GetLocalPasswordFor(passwordFolder, "alias_password");
+                        Debug.Log(
+                            $"batch_build_ PlayerSettings.keystorePass: {FormatUtil.PasswordToLog(PlayerSettings.keystorePass)}");
+                        Debug.Log($"batch_build_ Android.keyaliasName: {PlayerSettings.Android.keyaliasName}");
+                        Debug.Log(
+                            $"batch_build_ PlayerSettings.keyaliasPass: {FormatUtil.PasswordToLog(PlayerSettings.keyaliasPass)}");
                     }
                     break;
                 }
                 case BuildTarget.WebGL:
-                    // Save current Editor settings so they can be restored after build to original values
-                    // to prevent unnecessary changes in version control.
-                    savedWebGlSettings = new SavedWebGlSettings();
                     PlayerSettings.WebGL.compressionFormat = options.WebGL.compressionFormat;
                     Debug.Log($"batch_build_ WebGL.compressionFormat: {PlayerSettings.WebGL.compressionFormat}");
                     // No use to show stack trace in browser.
@@ -202,49 +229,16 @@ namespace Editor.Prg.BatchBuild
                     PlayerSettings.SetStackTraceLogType(LogType.Exception, StackTraceLogType.None);
                     break;
             }
+            // This produces multi-line output!
+            Debug.Log($"batch_build_ defines:\r\n{string.Join("\r\n", defines)}");
+
             if (Directory.Exists(options.OutputFolder))
             {
                 Directory.Delete(options.OutputFolder, recursive: true);
             }
             Directory.CreateDirectory(options.OutputFolder);
             var buildReport = BuildPipeline.BuildPlayer(buildPlayerOptions);
-            if (savedWebGlSettings != null)
-            {
-                savedWebGlSettings.Restore();
-            }
             return buildReport;
-
-            string GetLocalPasswordFor(string folder, string filename)
-            {
-                var file = Path.Combine(folder, filename);
-                if (!File.Exists(file))
-                {
-                    throw new UnityException($"batch_build_ file not found: {file}");
-                }
-                var line = File.ReadAllLines(file)[0];
-                Debug.Log($"batch_build_ file {filename}: {line[..2]}********{line[^2..]}");
-                return line;
-            }
-        }
-
-        private record SavedWebGlSettings
-        {
-            private readonly WebGLCompressionFormat _compressionFormat = PlayerSettings.WebGL.compressionFormat;
-            private readonly StackTraceLogType _error = PlayerSettings.GetStackTraceLogType(LogType.Error);
-            private readonly StackTraceLogType _assert = PlayerSettings.GetStackTraceLogType(LogType.Assert);
-            private readonly StackTraceLogType _warning = PlayerSettings.GetStackTraceLogType(LogType.Warning);
-            private readonly StackTraceLogType _log = PlayerSettings.GetStackTraceLogType(LogType.Log);
-            private readonly StackTraceLogType _exception = PlayerSettings.GetStackTraceLogType(LogType.Exception);
-
-            public void Restore()
-            {
-                PlayerSettings.WebGL.compressionFormat = _compressionFormat;
-                PlayerSettings.SetStackTraceLogType(LogType.Error, _error);
-                PlayerSettings.SetStackTraceLogType(LogType.Assert, _assert);
-                PlayerSettings.SetStackTraceLogType(LogType.Warning, _warning);
-                PlayerSettings.SetStackTraceLogType(LogType.Log, _log);
-                PlayerSettings.SetStackTraceLogType(LogType.Exception, _exception);
-            }
         }
 
         private static bool VerifyUnityVersionForBuild(string unityVersion, out string editorVersion)
@@ -264,6 +258,53 @@ namespace Editor.Prg.BatchBuild
                 : $"{filename}{newExtension}";
         }
 
+        public static Dictionary<string, string> LoadSecretKeys(string path, BuildTarget buildTarget)
+        {
+            // This belong to BatchBuildOptions but it is exposed for for testing.
+            var secretKeys = new Dictionary<string, string>();
+            if (buildTarget == BuildTarget.Android)
+            {
+                var androidOptions = Path.Combine(path, $"{nameof(BatchBuildOptions.AndroidOptions)}.txt");
+                if (!File.Exists(androidOptions))
+                {
+                    throw new UnityException($"batch_build_ file not found: {androidOptions}");
+                }
+                ParseSecretFile(androidOptions);
+            }
+#if USE_GA
+            if (!Directory.Exists(path))
+            {
+                throw new UnityException($"batch_build_ directory not found: {path}");
+            }
+            var gameAnalyticsOptions = Path.Combine(path, $"{nameof(BatchBuildOptions.GameAnalyticsOptions)}.txt");
+            if (!File.Exists(gameAnalyticsOptions))
+            {
+                throw new UnityException($"batch_build_ file not found: {gameAnalyticsOptions}");
+            }
+            ParseSecretFile(gameAnalyticsOptions);
+#endif
+            return secretKeys;
+
+            void ParseSecretFile(string filename)
+            {
+                foreach (var line in File.ReadAllLines(filename)
+                             .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith('#')))
+                {
+                    var tokens = line.Split('=');
+                    if (tokens.Length != 2 || tokens[0].Contains('#'))
+                    {
+                        throw new UnityException(
+                            $"batch_build_ invalid line in file: {filename}, line: {line}");
+                    }
+                    if (!secretKeys.TryAdd(tokens[0].Trim(), tokens[1].Trim()))
+                    {
+                        throw new UnityException(
+                            $"batch_build_ duplicate key in file: {filename}, line: {line}");
+                    }
+                }
+            }
+        }
+
         #region BatchBuildOptions
 
         private class BatchBuildOptions
@@ -271,11 +312,15 @@ namespace Editor.Prg.BatchBuild
             [SuppressMessage("ReSharper", "InconsistentNaming")]
             public class AndroidOptions
             {
-                public readonly string keyaliasName = SanitizePath(Application.productName).ToLower();
+                // PlayerSettings.Android.keyaliasName.
+                public string keyaliasName;
 
                 // This is path to android keystore file.
-                // Same directory will have an other file that contains required passwords!
                 public string keystoreName;
+
+                // Two passwords required for the build as in PlayerSettings.
+                public string keystorePassword;
+                public string aliasPassword;
             }
 
             [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -284,6 +329,14 @@ namespace Editor.Prg.BatchBuild
                 // PlayerSettings.WebGL.compressionFormat
                 // ReSharper disable once ConvertToConstant.Local
                 public readonly WebGLCompressionFormat compressionFormat = WebGLCompressionFormat.Brotli;
+            }
+
+            [SuppressMessage("ReSharper", "InconsistentNaming")]
+            public class GameAnalyticsOptions
+            {
+                // Secret keys for current build platform that will be inject in GameAnalyticsSDK.Setup.Settings.
+                public string gameKey;
+                public string secretKey;
             }
 
             // Paths and file names.
@@ -298,6 +351,7 @@ namespace Editor.Prg.BatchBuild
             public readonly string OutputPathName;
             public readonly AndroidOptions Android = new();
             public readonly WebGlOptions WebGL = new();
+            public readonly GameAnalyticsOptions GameAnalytics = new();
 
             // Just for information, if needed.
             public readonly string OutputFolder;
@@ -316,6 +370,7 @@ namespace Editor.Prg.BatchBuild
                 // -buildTarget - build target name (for UNITY)
                 // -logFile - log file name (for UNITY)
                 // -envFile - settings file name (for BatchBuild to read actual build options etc)
+                // -rebuild - do not update build info
                 {
                     var buildTargetName = string.Empty;
                     for (var i = 0; i < args.Length; ++i)
@@ -388,10 +443,10 @@ namespace Editor.Prg.BatchBuild
 
                 // Parse settings file.
                 var lines = File.ReadAllLines(EnvFile);
-                // Find Build Report line.
+                var secretKeys = new Dictionary<string, string>();
                 foreach (var line in lines)
                 {
-                    if (line.StartsWith("#") || string.IsNullOrEmpty(line))
+                    if (line.StartsWith('#') || string.IsNullOrEmpty(line))
                     {
                         continue;
                     }
@@ -405,42 +460,62 @@ namespace Editor.Prg.BatchBuild
                     var value = tokens[1].Trim();
                     switch (key)
                     {
+                        case "IsTestRun":
+                            IsTestRun = bool.Parse(value);
+                            break;
                         case "IsDevelopmentBuild":
                             IsDevelopmentBuild = bool.Parse(value);
                             break;
                         case "IsBuildReport":
                             IsBuildReport = bool.Parse(value);
                             break;
-                        case "Keystore":
-                            // This requires actual keystore file name and two passwords!
-                            Android.keystoreName = value;
-                            break;
-                        case "IsTestRun":
-                            IsTestRun = bool.Parse(value);
+                        case "SecretKeys":
+                            if (!Directory.Exists(value))
+                            {
+                                throw new UnityException($"batch_build_ directory not found: {value}");
+                            }
+                            secretKeys = LoadSecretKeys(value, BuildTarget);
                             break;
                         case "LOG_FILE_POST":
+                            // Variable is shared with commandline, thus it is in UPPER_CASE.
                             LogFilePost = value;
                             break;
                     }
                 }
-
                 // Create actual build options
                 BuildOptions = BuildOptions.StrictMode | BuildOptions.DetailedBuildReport;
                 if (IsDevelopmentBuild)
                 {
                     BuildOptions |= BuildOptions.Development;
                 }
+                // Set secret keys etc.
+                if (BuildTarget == BuildTarget.Android)
+                {
+                    Android.keystoreName = secretKeys[nameof(Android.keystoreName)];
+                    Android.keyaliasName = secretKeys[nameof(Android.keyaliasName)];
+                    Android.keystorePassword = secretKeys[nameof(Android.keystorePassword)];
+                    Android.aliasPassword = secretKeys[nameof(Android.aliasPassword)];
+                }
+#if USE_GA
+                GameAnalytics.gameKey = secretKeys[$"{BuildTarget}_{nameof(GameAnalytics.gameKey)}"];
+                GameAnalytics.secretKey = secretKeys[$"{BuildTarget}_{nameof(GameAnalytics.secretKey)}"];
+#else
+                Assert.IsNotNull(GameAnalytics);
+#endif
+                // Set final output path and name.
                 OutputFolder = Path.Combine(ProjectPath, $"build{BuildPipeline.GetBuildTargetName(BuildTarget)}");
                 if (BuildTarget == BuildTarget.WebGL)
                 {
                     OutputPathName = OutputFolder;
-                    return;
                 }
-                var appName =
-                    SanitizePath(
-                        $"{Application.productName}_{Application.version}_{PlayerSettings.Android.bundleVersionCode}");
-                var appExtension = BuildTarget == BuildTarget.Android ? "aab" : "exe";
-                OutputPathName = Path.Combine(OutputFolder, $"{appName}.{appExtension}");
+                else
+                {
+                    var appName =
+                        SanitizePath(
+                            $"{Application.productName}_{Application.version}_{PlayerSettings.Android.bundleVersionCode}");
+                    var appExtension = BuildTarget == BuildTarget.Android ? "aab" : "exe";
+                    OutputPathName = Path.Combine(OutputFolder, $"{appName}.{appExtension}");
+                }
             }
 
             public override string ToString()

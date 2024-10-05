@@ -1,38 +1,22 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using UnityEngine;
 
 namespace Prg.Window
 {
+    /// <summary>
+    /// These <c>PlatformNames</c> are exactly same as UNITY <c>RuntimePlatform</c> but the numbering is our own.
+    /// </summary>
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public enum PlatformNames
     {
-        OSXEditor = 1,
         OSXPlayer = 2,
         WindowsPlayer = 3,
-        WindowsEditor = 4,
         IPhonePlayer = 5,
         Android = 6,
         LinuxPlayer = 7,
-        LinuxEditor = 8,
         WebGLPlayer = 9,
-        WSAPlayerX86 = 10,
-        WSAPlayerX64 = 11,
-        WSAPlayerARM = 20,
-        PS4 = 13,
-        XboxOne = 14,
-        tvOS = 15,
-        Switch = 16,
-        Stadia = 17,
-        EmbeddedLinuxArm32 = 18,
-        EmbeddedLinuxX64 = 19,
-        EmbeddedLinuxX86 = 20,
-        LinuxServer = 21,
-        WindowsServer = 22,
-        OSXServer = 23,
-        QNXArm32 = 24,
-        QNXArm64 = 25,
-        QNXX64 = 26,
-        QNXX86 = 27
     }
 
     /// <summary>
@@ -45,36 +29,30 @@ namespace Prg.Window
     {
         private const string Tp1 = "Applicable when running in UNITY Editor";
         private const string Tp2 = "Applicable when 'Development Build' in Build Settings is set";
-        private const string Tp3 = "Applicable for given build platforms below";
+        private const string Tp3 = "Applicable for given production platforms below";
         private const string Tp4 = "GameObject(s) to enable on allowed platform(s), otherwise they are disabled";
 
         [SerializeField, Tooltip(Tp1)] private bool _isAllowInEditor;
-        [SerializeField, Tooltip(Tp2)] private bool _isAllowDevelopmentBuild;
+        [SerializeField, Tooltip(Tp2)] private bool _isAllowInDevelopmentBuild;
         [SerializeField, Tooltip(Tp3)] private bool _isAllowInProductionPlatforms;
-        [SerializeField] private PlatformNames[] _platformNames;
+        [SerializeField] private PlatformNames[] _productionPlatforms;
         [SerializeField, Tooltip(Tp4)] private GameObject[] _gameObjectsToWatch;
+
+        private bool IsAllowedPlatform(string platformName) => _productionPlatforms.Any(x =>
+            string.Compare(platformName, x.ToString(), StringComparison.Ordinal) == 0);
 
         private void OnEnable()
         {
+            MyAssert.IsTrue(_gameObjectsToWatch.Length > 0,
+                "PlatformSelector gameObjectsToWatch has nothing to manage", this);
+            var isAllowed = (_isAllowInEditor && AppPlatform.IsEditor) ||
+                            (_isAllowInDevelopmentBuild && AppPlatform.IsDevelopmentBuild) ||
+                            (_isAllowInProductionPlatforms && IsAllowedPlatform(Application.platform.ToString()));
             Debug.Log(
-                $"{name} on {Application.platform} is: editor {AppPlatform.IsEditor}, dev build {AppPlatform.IsDevelopmentBuild}, platforms {string.Join(',', _platformNames)}",
+                $"{name} {Application.platform} isAllowed {isAllowed}: editor {AppPlatform.IsEditor}, development {AppPlatform.IsDevelopmentBuild}" +
+                $", platforms {string.Join(',', _productionPlatforms)}",
                 this);
-            if (AppPlatform.IsEditor && _isAllowInEditor)
-            {
-                HandleComponents(true);
-                return;
-            }
-            if (AppPlatform.IsDevelopmentBuild && _isAllowDevelopmentBuild)
-            {
-                HandleComponents(true);
-                return;
-            }
-            if (IsAllowedPlatform(Application.platform.ToString()) && _isAllowInProductionPlatforms)
-            {
-                HandleComponents(true);
-                return;
-            }
-            HandleComponents(false);
+            HandleComponents(isAllowed);
         }
 
         private void HandleComponents(bool state)
@@ -83,19 +61,6 @@ namespace Prg.Window
             {
                 gameObjectToDisable.SetActive(state);
             }
-        }
-
-        private bool IsAllowedPlatform(string platformName)
-        {
-            foreach (var platform in _platformNames)
-            {
-                var allowedPlatform = platform.ToString();
-                if (platformName.Equals(allowedPlatform))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }

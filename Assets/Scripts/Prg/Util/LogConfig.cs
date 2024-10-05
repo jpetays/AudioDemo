@@ -1,11 +1,10 @@
 using System.Diagnostics;
-using Prg.EditorSupport;
+using NaughtyAttributes;
 using UnityEngine;
 #if PRG_DEBUG
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEngine.Assertions;
 #endif
@@ -16,19 +15,14 @@ namespace Prg.Util
     public class LogConfig : ScriptableObject
     {
         // This should be setup in .gitignore
-        private const string LocalResourceFolder = "_local";
-        private const string UnicodeBullet = "•";
+        public const string LocalResourceFolder = "_local";
 
-        public const string Tp0 =
+        private const string Tp0 =
             "LogConfig should be placed in folder\r\n" +
             "'Resources/_local' with name 'LogConfig'.\r\n" +
             "Preferably add folder '_local' to .gitignore";
 
         private const string Tp1 = "Enable logging to file";
-        private const string Tp2 = "Color for Logged Class name and method";
-        private const string Tp3 = "Marker Color for logged Context Objects";
-        private const string Tp4 = "Marker Character for logged Context Objects";
-
         private const string Tp5 = "Ignore Case in Regular expression";
 
         private const string Tp6 =
@@ -36,30 +30,47 @@ namespace Prg.Util
 
         private const string Tp7 = "List of classes that use Debug.Log calls in Play Mode, just for your information";
 
-        [Header("Notes"), Tooltip(Tp0), InspectorReadOnly] public string _notes = Tp0;
-
+        [InfoBox(Tp0)]
         [Header("Settings"), Tooltip(Tp1)] public bool _isLogToFile;
-        [Tooltip(Tp2)] public Color _classNameColor = new(1f, 1f, 1f, 1f);
-        [Tooltip(Tp3)] public Color _contextTagColor = new(1f, 0.5f, 0f, 1f);
-        [Tooltip(Tp4)] public string _contextTagChar = UnicodeBullet;
 
-        [Header("Class Names Filter"), Tooltip(Tp5)] public bool isIgnoreCase;
-        [Tooltip(Tp6), TextArea(5, 20)] public string _loggerRules;
+        [Header("Class Names Filter"), Tooltip(Tp5)] public bool _isIgnoreCase;
+        [Tooltip(Tp6), TextArea(5, 100)] public string _loggerRules;
 
-        [Header("Classes Seen in Last Play Mode"), Tooltip(Tp7), TextArea(5, 20)]
+        [Header("Classes Seen in Last Play Mode"), Tooltip(Tp7), ResizableTextArea]
         public string _classesSeenInPlayMode;
 
         [Conditional("PRG_DEBUG")]
         public static void Create()
         {
 #if PRG_DEBUG
+            Debug.ClearMethodCache();
             LogConfigFactory.Create(LoadLogConfig(LocalResourceFolder, nameof(LogConfig)));
+            ForceLogging(typeof(MyAssert));
             return;
 
             LogConfig LoadLogConfig(string localResourceFolder, string resourceName)
             {
                 var resource = Resources.Load<LogConfig>($"{localResourceFolder}/{resourceName}");
                 return resource != null ? resource : Resources.Load<LogConfig>(resourceName);
+            }
+#endif
+        }
+
+        [Conditional("PRG_DEBUG")]
+        public static void ForceLogging(Type type)
+        {
+#if PRG_DEBUG
+            LogConfigFactory.ForceLogging(type);
+#endif
+        }
+
+        [Conditional("PRG_DEBUG")]
+        public static void ForceLogging(params Type[] types)
+        {
+#if PRG_DEBUG
+            foreach (var type in types)
+            {
+                LogConfigFactory.ForceLogging(type);
             }
 #endif
         }
@@ -70,22 +81,25 @@ namespace Prg.Util
     {
         private class RegExFilter
         {
+            public readonly string Text;
             public readonly Regex Regex;
             public readonly bool IsLogged;
 
             public RegExFilter(string regex, bool isLogged, bool isIgnoreCase)
             {
-                var regexOptions = RegexOptions.Singleline | RegexOptions.CultureInvariant;
+                var regexOptions = RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled;
                 if (isIgnoreCase)
                 {
                     regexOptions |= RegexOptions.IgnoreCase;
                 }
+                Text = regex;
                 Regex = new Regex(regex, regexOptions);
                 IsLogged = isLogged;
             }
         }
 
-        private static readonly HashSet<string> classesSeenList = new();
+        private static readonly List<RegExFilter> RegExFilters = new();
+        private static readonly HashSet<string> ClassesSeenList = new();
 
         public static void Create(LogConfig logConfig)
         {
@@ -104,70 +118,63 @@ namespace Prg.Util
             }
         }
 
+        public static void ForceLogging(Type type)
+        {
+            var regEx = $"^{type.FullName}";
+            if (RegExFilters.FirstOrDefault(x => x.Text == regEx && x.IsLogged) != null)
+            {
+                return;
+            }
+            var filter = Create(regEx, true, false);
+            RegExFilters.Insert(0, filter);
+        }
+
         private static void CreateLoggerFilterConfig(LogConfig logConfig, Action<string> classesSeenCallback)
         {
             if (logConfig._isLogToFile)
             {
                 LogFileWriter.CreateLogFileWriter();
             }
-            if (AppPlatform.IsEditor)
-            {
-                Debug.TagColor = $"#{ColorUtility.ToHtmlStringRGBA(logConfig._classNameColor)}";
-                Debug.ContextColor = $"#{ColorUtility.ToHtmlStringRGBA(logConfig._contextTagColor)}";
-                Debug.ContextChar = logConfig._contextTagChar.Length > 0 ? logConfig._contextTagChar[..1] : "*";
-                // Clear previous run.
-                classesSeenList.Clear();
-                classesSeenCallback(string.Empty);
-            }
-            var capturedRegExFilters = BuildFilter(logConfig._loggerRules ?? string.Empty);
-            if (capturedRegExFilters.Count == 0)
-            {
 #if UNITY_EDITOR
-                const string GreedyFilter = "^.*=1";
-                logConfig._notes = LogConfig.Tp0;
-                Assert.IsNotNull(logConfig._classesSeenInPlayMode);
-                // Add greedy filter to catch everything in Editor.
-                logConfig._loggerRules = GreedyFilter;
-                capturedRegExFilters.Add(new RegExFilter(GreedyFilter, true, logConfig.isIgnoreCase));
-#else
-                // No filtering configured, everything will be logged by default.
-                return;
+            // Clear previous run.
+            ClassesSeenList.Clear();
+            classesSeenCallback(string.Empty);
+            RegExFilters.Clear();
 #endif
+            RegExFilters.AddRange(BuildFilter(logConfig._loggerRules ?? string.Empty));
+            if (RegExFilters.Count == 0)
+            {
+                return;
             }
 
-#if FORCE_LOG || UNITY_EDITOR
+#if UNITY_EDITOR || FORCE_LOG
 #else
-            UnityEngine.Debug.LogWarning($"NOTE! Application logging is totally disabled on platform: {Application.platform}");
+            UnityEngine.Debug.LogWarning($"NOTE! Prg logging is totally disabled on platform: {Application.platform}");
 #endif
             Debug.IsMethodAllowedFilter = LogLineAllowedFilterCallback;
             return;
 
-            bool LogLineAllowedFilterCallback(MethodBase method)
+            bool LogLineAllowedFilterCallback(Type type)
             {
-                // For anonymous types we try its parent type.
-                var isAnonymous = method.ReflectedType?.Name.StartsWith("<");
-                var type = isAnonymous.HasValue && isAnonymous.Value
-                    ? method.ReflectedType?.DeclaringType
-                    : method.ReflectedType;
-                if (type?.FullName == null)
-                {
-                    // Should not happen in this context because a method should have a class (even anonymous).
-                    return true;
-                }
-#if UNITY_EDITOR
-                // Collect all logged types in Editor just for fun.
-                if (classesSeenList.Add(type.FullName))
-                {
-                    var list = classesSeenList.ToList();
-                    list.Sort();
-                    // Lines should be put into something/somewhere that is not kept in the version control if it is saved on the disk.
-                    classesSeenCallback(string.Join('\n', list));
-                }
-#endif
+                // Should not happen in this context because a method should always have a class (even anonymous).
+                Assert.IsNotNull(type, "type can not be null in LogLineAllowedFilterCallback");
                 // If filter does not match we log them always.
                 // - add filter rule "^.*=0" to disable everything after this point
-                var match = capturedRegExFilters.FirstOrDefault(x => x.Regex.IsMatch(type.FullName));
-                return match?.IsLogged ?? true;
+                var typename = type.FullName ?? "";
+                var match = RegExFilters.FirstOrDefault(x => x.Regex.IsMatch(typename));
+                var isAllowed = match?.IsLogged ?? true;
+#if UNITY_EDITOR
+                // Collect all logged types in Editor for your convenience to setup logging rules.
+                var classRegExpLine = $"^{typename.Replace(".", "\\.")}={(isAllowed ? "01" : "0")}";
+                if (!ClassesSeenList.Add(classRegExpLine))
+                {
+                    return isAllowed;
+                }
+                var list = ClassesSeenList.ToList();
+                list.Sort();
+                classesSeenCallback(string.Join('\n', list));
+#endif
+                return isAllowed;
             }
 
             List<RegExFilter> BuildFilter(string lines)
@@ -183,7 +190,7 @@ namespace Prg.Util
                 foreach (var token in lines.Split('\n'))
                 {
                     var line = token.Trim();
-                    if (line.StartsWith("#") || string.IsNullOrEmpty(line))
+                    if (line.StartsWith('#') || string.IsNullOrEmpty(line))
                     {
                         continue;
                     }
@@ -201,8 +208,9 @@ namespace Prg.Util
                                 $"invalid Regex pattern '{line}', not a valid integer after '=' sign");
                             continue;
                         }
+                        var regEx = parts[0].Trim();
                         var isLogged = loggedValue != 0;
-                        var filter = new RegExFilter(parts[0].Trim(), isLogged, logConfig.isIgnoreCase);
+                        var filter = Create(regEx, isLogged, logConfig._isIgnoreCase, line);
                         list.Add(filter);
                     }
                     catch (Exception e)
@@ -210,8 +218,31 @@ namespace Prg.Util
                         UnityEngine.Debug.LogError($"invalid Regex pattern '{line}': {e.GetType().Name} {e.Message}");
                     }
                 }
+#if UNITY_EDITOR
+                if (list.Count == 0)
+                {
+                    // Log everything in Editor if nothing is specified.
+                    list.Add(new RegExFilter("^.*=1", true, logConfig._isIgnoreCase));
+                }
+#endif
                 return list;
             }
+        }
+
+        private static RegExFilter Create(string regEx, bool isLogged, bool isIgnoreCase, string line = null)
+        {
+            if (regEx.Contains('+'))
+            {
+                // Inner classes!
+                if (regEx.Contains("\\+"))
+                {
+                    UnityEngine.Debug.LogError($"do not escape plus sign, it is done automatically: '{line}'");
+                }
+                // Poodle.Game.GameCamera+RawCameraFollow+<MoveCamera>d__12
+                regEx = regEx.Replace("+", "\\+");
+            }
+            var filter = new RegExFilter(regEx, isLogged, isIgnoreCase);
+            return filter;
         }
     }
 #endif

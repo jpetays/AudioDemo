@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using TMPro;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -22,42 +23,40 @@ namespace Editor.Prg.BatchBuild
     /// </remarks>
     internal static class BuildReportAnalyzer
     {
-        private const string LastBuildReportPath = "Library/LastBuild.buildreport";
-        private const string BuildReportDir = "Assets/BuildReports";
         private const ulong MinPackedSize = 1024;
 
         private const string HtmlReportName = "Assets/BuildReports/BuildReport.html";
 
-        public static void HtmlBuildReportFast(bool useJavaScriptSort = true)
+        public static void HtmlBuildReportFast(
+            string title = null, string fingerPrint = null, bool useJavaScriptSort = true)
         {
             Debug.Log("*");
-            BuildReport buildReport = null;
-            Timed("Load Last Build Report", () =>
-                buildReport = GetOrCreateLastBuildReport());
-            if (buildReport == null)
-            {
-                Debug.Log($"{LastBuildReportPath} NOT FOUND");
-                return;
-            }
-            AnalyzeLastBuildReport(buildReport, false, false, useJavaScriptSort);
+            HtmlBuildReport(false, false, useJavaScriptSort, title, fingerPrint);
         }
 
-        public static void HtmlBuildReportFull(bool useJavaScriptSort = true)
+        public static void HtmlBuildReportFull(
+            string title = null, string fingerPrint = null, bool useJavaScriptSort = true)
+        {
+            Debug.Log("*");
+            HtmlBuildReport(true, false, useJavaScriptSort, title, fingerPrint);
+        }
+
+        private static void HtmlBuildReport(bool includeUnused, bool logDetails, bool useJavaScriptSort,
+            string title, string fingerPrint)
         {
             Debug.Log("*");
             BuildReport buildReport = null;
             Timed("Load Last Build Report", () =>
-                buildReport = GetOrCreateLastBuildReport());
+                buildReport = UnityBuildReport.GetOrCreateLastBuildReport());
             if (buildReport == null)
             {
-                Debug.Log($"{LastBuildReportPath} NOT FOUND");
                 return;
             }
-            AnalyzeLastBuildReport(buildReport, true, false, useJavaScriptSort);
+            AnalyzeLastBuildReport(buildReport, includeUnused, logDetails, useJavaScriptSort, title, fingerPrint);
         }
 
         private static void AnalyzeLastBuildReport(BuildReport buildReport, bool includeUnused, bool logDetails,
-            bool useJavaScriptSort = false)
+            bool useJavaScriptSort, string title, string fingerPrint)
         {
             var summary = buildReport.summary;
             var buildTargetName = BuildPipeline.GetBuildTargetName(summary.platform);
@@ -126,7 +125,8 @@ namespace Editor.Prg.BatchBuild
                 }
             }
             Timed("HTML report", () =>
-                HtmlReporter.CreateBuildReportHtmlPage(unusedAssets, largeAssets, summary, useJavaScriptSort));
+                HtmlReporter.CreateBuildReportHtmlPage(
+                    unusedAssets, largeAssets, summary, useJavaScriptSort, title, fingerPrint));
         }
 
         private static void AnalyzeLastScenesUsingAssets(BuildReport buildReport, bool logDetails)
@@ -185,7 +185,7 @@ namespace Editor.Prg.BatchBuild
                 foreach (var assetInfo in contents)
                 {
                     var sourceAssetPath = assetInfo.sourceAssetPath;
-                    if (IsPathExcluded(sourceAssetPath))
+                    if (IsAssetExcluded(sourceAssetPath))
                     {
                         continue;
                     }
@@ -228,7 +228,7 @@ namespace Editor.Prg.BatchBuild
                 {
                     continue;
                 }
-                if (IsPathExcluded(assetPath))
+                if (IsAssetExcluded(assetPath))
                 {
                     continue;
                 }
@@ -237,19 +237,15 @@ namespace Editor.Prg.BatchBuild
             return unusedAssets;
         }
 
-        private static bool IsPathExcluded(string path)
+        private static bool IsAssetExcluded(string path)
         {
             // Note that
+            // - TextMesh Pro *is* included here because it can contain fonts
             // - scenes are not included in Build Report as other assets
+            // - animation controllers are ignored silently
             // - inputactions can not be detected for now and we ignore them silently
             return path.StartsWith("Packages/") ||
                    path.StartsWith("Assets/BuildReport") ||
-                   path.StartsWith("Assets/Photon/") ||
-                   path.StartsWith("Assets/Plugins/") ||
-                   path.StartsWith("Assets/Tests/") ||
-                   path.StartsWith("Assets/TextMesh Pro/") ||
-                   path.Contains("/Editor/") ||
-                   path.Contains("/Test/") ||
                    path.EndsWith(".asmdef") ||
                    path.EndsWith(".asmref") ||
                    path.EndsWith(".controller") ||
@@ -259,44 +255,14 @@ namespace Editor.Prg.BatchBuild
                    path.EndsWith(".unity");
         }
 
-        /// <summary>
-        /// Gets last UNITY Build Report from file.
-        /// </summary>
-        /// <remarks>
-        /// This code is based on UNITY Build Report Inspector<br />
-        /// https://docs.unity3d.com/Packages/com.unity.build-report-inspector@0.1/manual/index.html<br />
-        /// https://github.com/Unity-Technologies/BuildReportInspector/blob/master/com.unity.build-report-inspector/Editor/BuildReportInspector.cs
-        /// </remarks>
-        /// <returns>the last <c>BuildReport</c> instance or <c>null</c> if one is not found</returns>
-        private static BuildReport GetOrCreateLastBuildReport()
+        private static bool IsUnusedAssetExcluded(string path)
         {
-            if (!File.Exists(LastBuildReportPath))
-            {
-                Debug.Log($"Last Build Report NOT FOUND: {LastBuildReportPath}");
-                return null;
-            }
-            if (!Directory.Exists(BuildReportDir))
-            {
-                Directory.CreateDirectory(BuildReportDir);
-            }
-
-            var date = File.GetLastWriteTime(LastBuildReportPath);
-            var name = $"Build_{date:yyyy-MM-dd_HH.mm.ss}";
-            var assetPath = $"{BuildReportDir}/{name}.buildreport";
-
-            // Load last Build Report.
-            var buildReport = AssetDatabase.LoadAssetAtPath<BuildReport>(assetPath);
-            if (buildReport != null && buildReport.name == name)
-            {
-                return buildReport;
-            }
-            // Create new last Build Report.
-            File.Copy("Library/LastBuild.buildreport", assetPath, true);
-            AssetDatabase.ImportAsset(assetPath);
-            buildReport = AssetDatabase.LoadAssetAtPath<BuildReport>(assetPath);
-            buildReport.name = name;
-            AssetDatabase.SaveAssets();
-            return buildReport;
+            return path.StartsWith("Assets/Astar/") ||
+                   path.StartsWith("Assets/Photon/") ||
+                   path.StartsWith("Assets/Plugins/") ||
+                   path.StartsWith("Assets/Tests/") ||
+                   path.Contains("/Editor/") ||
+                   path.Contains("/Test/");
         }
 
         #region Utilities
@@ -355,27 +321,48 @@ namespace Editor.Prg.BatchBuild
             private static readonly string[] KnownAssetExtensions =
             {
                 "asset",
+                "AudioClip",
+                "dll",
                 "Font",
+                "guiskin",
                 "jpg",
                 "Material",
+                "mdb",
+                "mp3",
                 "png",
+                "psb", // Adobe Photoshop Large Document Format
                 "psd",
+                "Shader",
+                "shader",
                 "Sprite",
                 "Texture2D",
                 "ttf",
                 "wav",
                 ""
             };
+
             private static readonly string[] IgnoredAssetExtensions =
             {
                 "anim",
                 "AnimationClip",
+                "cginc", // Shader
+                "csv",
                 "fbx",
+                "gradle",
+                "html",
+                "json",
                 "mat",
+                "md",
+                "mixer",
+                "ParticleSystem",
+                "pdf",
                 "prefab",
-                "shader",
+                "properties",
+                "Tilemap",
                 "TextAsset",
+                "tsv",
                 "txt",
+                "xml",
                 ""
             };
 
@@ -383,6 +370,7 @@ namespace Editor.Prg.BatchBuild
             public readonly string AssetTypeTag;
             public readonly string AssetSizeTag;
             public readonly bool IsTexture;
+            public readonly bool IsFont;
             public readonly bool IsAudioClip;
             public readonly bool IsRecommendedFormat;
             public readonly bool IsNPOT;
@@ -402,7 +390,7 @@ namespace Editor.Prg.BatchBuild
                     {
                         return;
                     }
-                    Debug.Log($"skip '{AssetType}' in {assetInfo.AssetPath}");
+                    Debug.LogWarning($"skip '{AssetType}' in {assetInfo.AssetPath}, it is unknown");
                     return;
                 }
                 var asset = AssetDatabase.LoadAssetAtPath<Object>(assetInfo.AssetPath);
@@ -413,10 +401,6 @@ namespace Editor.Prg.BatchBuild
                 }
                 if (asset is Texture2D texture2D)
                 {
-                    if (AssetPath.Contains("TextMesh Pro") || AssetPath.Contains("Font"))
-                    {
-                        AssetTypeTag = "Font";
-                    }
                     // https://docs.unity3d.com/ScriptReference/Texture2D.html
                     // Recommended, default, and supported texture formats, by platform
                     // https://docs.unity3d.com/Manual/class-TextureImporterOverride.html
@@ -441,13 +425,27 @@ namespace Editor.Prg.BatchBuild
                     {
                         return;
                     }
-                    if (!AssetPath.Contains("TextMesh Pro") && !AssetPath.Contains("Font"))
+                    var isFont = AssetPath.Contains("Font") || AssetPath.Contains("TextMesh Pro");
+                    if (!isFont)
                     {
                         return;
                     }
+                    IsFont = true;
                     // Should be font atlas (greyscale Alpha8).
-                    GroupByTypeKey = $"font {assetFormat}";
+                    GroupByTypeKey = $"font {GroupByTypeKey}";
                     AssetTypeTag = $"Font {AssetTypeTag}";
+                    return;
+                }
+                if (asset is TMP_FontAsset font)
+                {
+                    IsFont = true;
+                    var extension = GetExtension(AssetPath);
+                    var assetFormat = font.atlasTexture.format.ToString();
+                    var width = font.atlasWidth;
+                    var height = font.atlasHeight;
+                    GroupByTypeKey = $"font {extension} {assetFormat}";
+                    AssetTypeTag = $"Font {assetFormat}";
+                    AssetSizeTag = $"{width}x{height}";
                     return;
                 }
                 if (asset is AudioClip audioClip)
@@ -468,14 +466,19 @@ namespace Editor.Prg.BatchBuild
                 {
                     if (tile.sprite != null)
                     {
-                        GroupByTypeKey = "tile";
-                        AssetTypeTag = "tile";
+                        GroupByTypeKey = "tile sprite";
+                        AssetTypeTag = "tile sprite";
                     }
                     else
                     {
-                        GroupByTypeKey = "tile ?";
-                        AssetTypeTag = "tile ?";
+                        GroupByTypeKey = "tile unk";
+                        AssetTypeTag = "tile unk";
                     }
+                    return;
+                }
+                if (asset is Shader)
+                {
+                    // Nothing to add, shader name could be added on report?
                     return;
                 }
                 var fullName = asset.GetType().FullName ?? string.Empty;
@@ -484,7 +487,15 @@ namespace Editor.Prg.BatchBuild
                 {
                     return;
                 }
-                Debug.Log($"ignore {AssetType} {fullName} {assetInfo.AssetPath}");
+                // ignore dll UnityEditor.DefaultAsset Assets/Plugins/Demigiant/DOTween/Editor/DOTweenEditor.dll
+                // ignore mdb UnityEditor.DefaultAsset Assets/Plugins/Demigiant/DOTween/DOTween.dll.mdb
+                var assetPath = assetInfo.AssetPath;
+                if (assetPath.StartsWith("Assets/Plugins/") &&
+                    (assetPath.EndsWith(".dll") || assetPath.EndsWith(".mdb")))
+                {
+                    return;
+                }
+                Debug.Log($"ignore {AssetType} f={fullName} a={assetPath}");
                 return;
 
                 bool IsPowerOfTwo(int x)
@@ -574,7 +585,7 @@ namespace Editor.Prg.BatchBuild
         {
             public static void CreateBuildReportHtmlPage(List<BuildAssetInfo> unusedAssets,
                 List<BuildAssetInfo> largeAssets, BuildSummary summary,
-                bool useJavaScriptSort)
+                bool useJavaScriptSort, string title, string fingerPrint)
             {
                 #region HTML Templates
 
@@ -585,6 +596,7 @@ namespace Editor.Prg.BatchBuild
                 // https://htmlcolorcodes.com/color-names/
                 const string htmlStart = @"<!DOCTYPE html>
 <html>
+<!-- @Build_Comment@-->
 <head>
 <style>
 html * {
@@ -604,6 +616,15 @@ tr > * + * {
 }
 th {
   text-align: left;
+}
+th.prod {
+  color: DodgerBlue;
+}
+th.test {
+  color: Coral;
+}
+th.unused {
+  color: Crimson;
 }
 td.center {
   text-align: center;
@@ -626,7 +647,7 @@ td.right {
 .same {
   color: DarkGray;
 }
-.megabytes {
+.megabytes, .special {
   color: DarkBlue;
 }
 .kilobytes {
@@ -645,60 +666,41 @@ td.right {
   color: CadetBlue;
 }
 </style>
-<title>@Build_Report@</title>
+<title>@Build_Title@</title>
 </head>
 <body>";
                 const string htmlEnd = @"</body>
 </html>";
                 const string javaScript = @"
-// https://www.w3schools.com/howto/howto_js_sort_table.asp
-const sortDir = [false,false,false,false,false,false];
-function sortTable(index) {
-  table = document.getElementById(""dataTable"");
-  sortingUp = !sortDir[index];
-  sortDir[index] = sortingUp;
-  switching = true;
-  /*Make a loop that will continue until
-  no switching has been done:*/
-  while (switching) {
-    //start by saying: no switching is done:
-    switching = false;
-    rows = table.rows;
-    /*Loop through all table rows (except the
-    first, which contains table headers):*/
-    for (i = 1; i < (rows.length - 1); i++) {
-      //start by saying there should be no switching:
-      shouldSwitch = false;
-      /*Get the two elements you want to compare,
-      one from current row and one from the next:*/
-      x = rows[i].getElementsByTagName(""TD"")[index];
-      y = rows[i + 1].getElementsByTagName(""TD"")[index];
-      //check if the two rows should switch place:
-      if (sortingUp) {
-        if (x.innerText.toLowerCase() > y.innerText.toLowerCase()) {
-          //if so, mark as a switch and break the loop:
-          shouldSwitch = true;
-          break;
+// https://wpdatatables.com/javascript-sorting-tables/
+const sortDir = [1, 1, 1, 1, 1, 1];
+function sortTable(columnIndex) {
+    const dir = sortDir[columnIndex];
+    sortDir[columnIndex] = -dir;
+    sortTable2(columnIndex, dir, columnIndex === 0 || columnIndex === 2);
+}
+function sortTable2(columnIndex, sortDirection, isDataset) {
+    const table = document.getElementById(""dataTable"");
+    const rows = Array.prototype.slice.call(table.querySelectorAll(""tbody > tr""));
+    rows.sort(function (rowA, rowB) {
+        //var cellA = rowA.cells[columnIndex].textContent;
+        //var cellB = rowB.cells[columnIndex].textContent;
+        var cellA = isDataset ? rowA.cells[columnIndex].dataset.value :rowA.cells[columnIndex].innerText;
+        var cellB = isDataset ? rowB.cells[columnIndex].dataset.value : rowB.cells[columnIndex].innerText;
+        // Handle numerical values
+        if (!isNaN(cellA) && !isNaN(cellB)) {
+            return (cellA - cellB) * sortDirection;
         }
-      } else {
-        if (x.innerText.toLowerCase() < y.innerText.toLowerCase()) {
-          //if so, mark as a switch and break the loop:
-          shouldSwitch = true;
-          break;
-        }
-      }
-    }
-    if (shouldSwitch) {
-      /*If a switch has been marked, make the switch
-      and mark that a switch has been done:*/
-      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-      switching = true;
-    }
-  }
+        // Default to string comparison
+        return cellA.localeCompare(cellB) * sortDirection;
+    });
+    rows.forEach(function (row) {
+        table.querySelector(""tbody"").appendChild(row);
+    });
 }";
 
                 const string excludeFilesWarning =
-                    "Note that C# source code, scenes and other components can be excluded form this report for various reasons";
+                    "Note that source code, text file types, scenes and other components can be excluded from this report for various reasons";
 
                 #endregion
 
@@ -717,21 +719,28 @@ function sortTable(index) {
                 var testFileSizes = new Dictionary<string, ulong>();
                 var unusedFileSizes = new Dictionary<string, ulong>();
 
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    title = Application.productName;
+                }
                 // Actual Build Report.
                 var buildName = BuildPipeline.GetBuildTargetName(summary.platform);
-                var fixedHtmlStart = htmlStart.Replace("@Build_Report@",
-                    $"{Application.productName} {buildName} Build Report");
+                var buildInfo = $"{title} {buildName} Build Report";
+                var fixedHtmlStart = htmlStart
+                    .Replace("@Build_Comment@", $"{buildInfo} {fingerPrint}")
+                    .Replace("@Build_Title@", buildInfo);
                 var builder = new StringBuilder()
                     .Append(fixedHtmlStart).AppendLine()
-                    .Append(@"<table id=""dataTable"">").AppendLine();
+                    .Append(@"<table id=""dataTable"">").AppendLine()
+                    .Append("<thead>").AppendLine();
                 if (useJavaScriptSort)
                 {
                     builder
                         .Append("<tr>")
-                        .Append(@"<th><button onclick=""sortTable(0)"">Packed Size</button></th>")
+                        .Append(@"<th><button onclick=""sortTable(0)"">Packed</button></th>")
                         .Append(@"<th><button onclick=""sortTable(1)"">Check</button></th>")
-                        .Append(@"<th><button onclick=""sortTable(2)"">File Size</button></th>")
-                        .Append(@"<th><button onclick=""sortTable(3)"">AssetType Info</button></th>")
+                        .Append(@"<th><button onclick=""sortTable(2)"">File</button></th>")
+                        .Append(@"<th><button onclick=""sortTable(3)"">Asset Type</button></th>")
                         .Append(@"<th><button onclick=""sortTable(4)"">Asset Name</button></th>")
                         .Append(@"<th><button onclick=""sortTable(5)"">Asset Path</button></th>")
                         .Append("</tr>").AppendLine();
@@ -748,20 +757,28 @@ function sortTable(index) {
                         .Append($"<th>Path</th>")
                         .Append("</tr>").AppendLine();
                 }
+                builder
+                    .Append("</thead>").AppendLine()
+                    .Append("<tbody>").AppendLine();
+                var ignoredAssets = 0;
                 foreach (var a in finalAssets)
                 {
+                    if (IsUnusedAssetExcluded(a.AssetPath) ||
+                        (a.IsUnused && a.AssetTypeTag.ToLower() == "shader"))
+                    {
+                        ignoredAssets += 1;
+                        continue;
+                    }
                     UpdateFileTypeStatistics(a);
-
                     var marker = a.IsUnused ? @"<span class=""unused"">unused</span>"
                         : a.PackedSize < a.FileSize ? @"<span class=""less"">less</span>"
                         : a.PackedSize > a.FileSize ? @"<span class=""more"">more</span>"
                         : @"<span class=""same"">same</span>";
-                    var name = Path.GetFileName(a.AssetPath);
-                    if (a.IsTest)
-                    {
-                        name = @$"<span class=""for-test"">{name}</span>";
-                    }
-                    var folder = Path.GetDirectoryName(a.AssetPath);
+                    var name = Path.GetFileName(a.AssetPath)
+                        .Replace("Test", @"<span class=""special""><b>Test</b></span>");
+                    var folder = (Path.GetDirectoryName(a.AssetPath) ?? "")
+                        .Replace("Resources", @"<span class=""special""><b>Resources</b></span>")
+                        .Replace("Test", @"<span class=""special""><b>Test</b></span>");
                     var filetype = a.AssetTypeTag;
                     if (a.IsTexture)
                     {
@@ -775,26 +792,29 @@ function sortTable(index) {
                             filetype = @$"{filetype} <span class=""npot"">NPOT</span>";
                         }
                     }
-                    else if (a.IsAudioClip)
+                    else if (a.IsAudioClip || a.IsFont)
                     {
                         filetype = $"{filetype} {a.AssetSizeTag}";
                     }
                     builder
                         .Append("<tr>")
-                        .Append($"<td{GetStyleFromFileSize(a.PackedSize)}>{FormatSize(a.PackedSize)}</td>")
+                        .Append($"<td{GetStyleFromFileSize(a.PackedSize)} data-value=\"{a.PackedSize}\">{FormatSize(a.PackedSize)}</td>")
                         .Append($"<td>{marker}</td>")
-                        .Append($"<td{GetStyleFromFileSize(a.FileSize)}>{FormatSize(a.FileSize)}</td>")
+                        .Append($"<td{GetStyleFromFileSize(a.FileSize)} data-value=\"{a.FileSize}\">{FormatSize(a.FileSize)}</td>")
                         .Append($"<td>{filetype}</td>")
                         .Append($"<td>{name}</td>")
                         .Append($"<td>{folder}</td>")
                         .Append("</tr>").AppendLine();
                 }
+                var visibleAssets = tempAssets.Count - ignoredAssets;
                 builder
-                    .Append("</table>").AppendLine()
+                    .Append("</tbody>").AppendLine()
+                    .Append("</table>").AppendLine();
+                builder
                     .Append(
-                        @$"<p class=""smaller"">Table row count is {tempAssets.Count}. Refresh page (F5) for default sort by largest size</p>")
+                        @$"<p class=""smaller"">Table row count is {visibleAssets}. Ignored unused assets {ignoredAssets}. Refresh page (F5) for default sort by largest size</p>")
                     .AppendLine()
-                    .Append(@$"<p class=""smaller"">Build for {buildName} platform" +
+                    .Append(@$"<p class=""smaller"">Build for {buildInfo} {fingerPrint}" +
                             $" on {summary.buildEndedAt:yyyy-MM-dd HH:mm:ss}" +
                             $" output size is {FormatSize(summary.totalSize)}</p>").AppendLine();
 
@@ -808,9 +828,9 @@ function sortTable(index) {
                     .Append(@"<table id=""stats"">").AppendLine()
                     .Append("<tr>")
                     .Append(@"<th>File</th>")
-                    .Append(@"<th colspan=""2"">Prod</th>")
-                    .Append(@"<th colspan=""2"">Test</th>")
-                    .Append(@"<th colspan=""2"">Unused</th>")
+                    .Append(@"<th class=""prod"" colspan=""2"">Prod</th>")
+                    .Append(@"<th class=""test"" colspan=""2"">Test</th>")
+                    .Append(@"<th class=""unused"" colspan=""2"">Unused</th>")
                     .Append("</tr>").AppendLine()
                     .Append("<tr>")
                     .Append("<th>AssetType</th>")

@@ -13,7 +13,7 @@ using UnityEngine;
 namespace Editor.Prg.BatchBuild
 {
     /// <summary>
-    /// Creates a list of files in the UNITY <c>BuildReport</c> to JSON formattable classes.
+    /// Creates a list of files from the UNITY <c>BuildReport</c> into JSON formattable classes.
     /// </summary>
     public static class BatchBuildReport
     {
@@ -76,29 +76,6 @@ namespace Editor.Prg.BatchBuild
             }
             var reportedSize = packedAssets.Sum(x => (long)x.packedSize);
             return new BuildReportAssets(reportedSize, buildReport.summary, packedAssets);
-        }
-    }
-
-    public static class BuildReportExtensions
-    {
-        public static List<PackedAssetInfo> GetPackedAssets(this BuildReport buildReport)
-        {
-            List<PackedAssetInfo> packedAssets = new List<PackedAssetInfo>();
-            foreach (var packedAsset in buildReport.packedAssets)
-            {
-                var contents = packedAsset.contents;
-                foreach (var assetInfo in contents)
-                {
-                    var sourceAssetGuid = assetInfo.sourceAssetGUID.ToString();
-                    if (sourceAssetGuid == "00000000000000000000000000000000" ||
-                        sourceAssetGuid == "0000000000000000f000000000000000")
-                    {
-                        continue;
-                    }
-                    packedAssets.Add(assetInfo);
-                }
-            }
-            return packedAssets;
         }
     }
 

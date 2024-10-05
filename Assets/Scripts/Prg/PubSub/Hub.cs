@@ -3,11 +3,12 @@
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Assertions;
+using Object = UnityEngine.Object;
 #endif
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Object = UnityEngine.Object;
 
 namespace Prg.PubSub
 {
@@ -67,6 +68,7 @@ namespace Prg.PubSub
             public readonly Delegate Action;
             public readonly Subscriber Subscriber;
             public readonly Type MessageType;
+            public readonly object UnsubscribeHandle;
             private readonly object _selectorWrapper;
 
             public bool Select<T>(T message)
@@ -82,12 +84,14 @@ namespace Prg.PubSub
                 return false;
             }
 
-            public Handler(Delegate action, Subscriber subscriber, Type messageType, object selectorWrapper)
+            public Handler(Delegate action, Subscriber subscriber, Type messageType, object selectorWrapper,
+                object unsubscribeHandle = null)
             {
                 Action = action;
                 Subscriber = subscriber;
                 MessageType = messageType;
                 _selectorWrapper = selectorWrapper;
+                UnsubscribeHandle = unsubscribeHandle ?? this;
             }
 
             public override string ToString()
@@ -106,8 +110,9 @@ namespace Prg.PubSub
                 }
             }
         }
+
 #if PUBSUB_THREADS
-        private readonly object _locker = new();
+        private readonly object _locker = new object();
 #else
         public static void SetMainThreadId(int threadId) => _mainThreadId = threadId;
 
@@ -131,18 +136,23 @@ namespace Prg.PubSub
 #else
             Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
 #endif
+            // lock (_locker)
             {
                 handlerCount = _handlers.Count;
                 if (handlerCount == 0)
                 {
                     return;
                 }
+#if !PUBSUB_THREADS
                 foreach (var handler in _handlers)
                 {
-                    Debug.Log($"handler {handler}");
+                    Debug.LogWarning($"handler {handler}");
                 }
+#endif
             }
+#if !PUBSUB_THREADS
             Debug.LogWarning($"handlerCount is {handlerCount}");
+#endif
         }
 
         public void Publish<T>(T data = default)
@@ -155,6 +165,7 @@ namespace Prg.PubSub
 #else
             Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
 #endif
+            // lock (_locker)
             {
                 foreach (var handler in _handlers)
                 {
@@ -210,19 +221,23 @@ namespace Prg.PubSub
             }
         }
 
-        public void Subscribe<T>(object subscriber, Action<T> messageHandler, Predicate<T> messageSelector)
+        public object Subscribe<T>(object subscriber, Action<T> messageHandler, Predicate<T> messageSelector,
+            object unsubscribeHandle)
         {
             var selectorWrapper = messageSelector != null ? new Handler.SelectorWrapper<T>(messageSelector) : null;
-            var item = new Handler(messageHandler, new Subscriber(subscriber), typeof(T), selectorWrapper);
+            var item = new Handler(messageHandler, new Subscriber(subscriber), typeof(T), selectorWrapper,
+                unsubscribeHandle);
 #if PUBSUB_THREADS
             lock (_locker)
 #else
             Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
 #endif
+            // lock (_locker)
             {
                 //-Debug.Log($"subscribe {item}");
                 _handlers.Add(item);
             }
+            return item.UnsubscribeHandle;
         }
 
         public void Unsubscribe(object subscriber)
@@ -232,6 +247,7 @@ namespace Prg.PubSub
 #else
             Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
 #endif
+            // lock (_locker)
             {
                 var query = _handlers
                     .Where(handler => !handler.Subscriber.IsAlive ||
@@ -252,6 +268,7 @@ namespace Prg.PubSub
 #else
             Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
 #endif
+            // lock (_locker)
             {
                 var query = _handlers
                     .Where(handler => !handler.Subscriber.IsAlive ||
@@ -263,6 +280,27 @@ namespace Prg.PubSub
                     query = query.Where(handler => !handler.Subscriber.IsAlive ||
                                                    handler.Action.Equals(handlerToRemove));
                 }
+
+                foreach (var h in query.ToList())
+                {
+                    //-Debug.Log($"unsubscribe {h}");
+                    _handlers.Remove(h);
+                }
+            }
+        }
+
+        public void UnsubscribeListener(object unsubscribeHandle)
+        {
+#if PUBSUB_THREADS
+            lock (_locker)
+#else
+            Assert.AreEqual(_mainThreadId, Thread.CurrentThread.ManagedThreadId);
+#endif
+            // lock (_locker)
+            {
+                var query = _handlers
+                    .Where(handler => !handler.Subscriber.IsAlive ||
+                                      ReferenceEquals(handler.UnsubscribeHandle, unsubscribeHandle));
 
                 foreach (var h in query.ToList())
                 {

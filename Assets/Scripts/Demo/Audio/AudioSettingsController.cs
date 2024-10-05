@@ -21,7 +21,7 @@ namespace Demo.Audio
         {
             _view.ResetView();
             var startupMessage = new StringBuilder()
-                .Append(" Ver ").Append(BuildInfo.Version)
+                .Append(" Ver ").Append(Application.version)
                 .Append(" Screen ").Append(AppPlatform.Resolution())
                 .ToString();
             _view.WindowTitle = $"Audio Settings\r\n{startupMessage}";

@@ -13,8 +13,28 @@ namespace Prg.Window
     /// </summary>
     internal static class SceneLoader
     {
+        public static bool NeedsSceneLoad(WindowDef windowDef)
+        {
+            return windowDef.HasScene && windowDef.SceneName != SceneManager.GetActiveScene().name;
+        }
+
         public static void LoadScene(WindowDef windowDef)
         {
+            if (windowDef.HasScene &&  windowDef.Scene.IsNetworkScene)
+            {
+                Debug.Log($"LOAD NETWORK {windowDef}", windowDef);
+#if PHOTON_UNITY_NETWORKING
+                PhotonNetwork.LoadLevel(scene.SceneName);
+                return;
+#else
+                throw new UnityException("PHOTON_UNITY_NETWORKING not available");
+#endif
+            }
+            Debug.Log($"LOAD LOCAL {windowDef}", windowDef);
+            var sceneIndex = windowDef.IsSceneWindow ? windowDef.SceneIndex : FindFirstSceneIndex(windowDef.Scene.SceneName);
+            SceneManager.LoadScene(sceneIndex);
+            return;
+
             int FindFirstSceneIndex(string sceneName)
             {
                 var sceneCount = SceneManager.sceneCountInBuildSettings;
@@ -30,23 +50,6 @@ namespace Prg.Window
                 }
                 throw new UnityException($"scene not found: {sceneName}");
             }
-
-            var scene = windowDef.Scene;
-            Assert.IsNotNull(scene, "scene != null");
-            Assert.IsFalse(string.IsNullOrEmpty(scene.SceneName), "string.IsNullOrEmpty(scene.SceneName)");
-            var sceneIndex = FindFirstSceneIndex(scene.SceneName);
-            if (scene.IsNetworkScene)
-            {
-                Debug.Log($"NETWORK {scene.SceneName} ({sceneIndex})", windowDef);
-#if PHOTON_UNITY_NETWORKING
-                PhotonNetwork.LoadLevel(scene.SceneName);
-                return;
-#else
-                throw new UnityException("PHOTON_UNITY_NETWORKING not available");
-#endif
-            }
-            Debug.Log($"LOCAL {scene.SceneName} ({sceneIndex})", scene);
-            SceneManager.LoadScene(sceneIndex);
         }
     }
 }

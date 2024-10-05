@@ -22,8 +22,10 @@ namespace Prg.Window
         private void Awake()
         {
             var escapeInputAction = Resources.Load<EscapeInputAction>(nameof(EscapeInputAction));
-            Assert.IsNotNull(escapeInputAction, "escapeInputAction != null");
+            Assert.IsNotNull(escapeInputAction, "escapeInputAction != null, Create it in Resources folder");
             _escapeInputActionRef = escapeInputAction._escapeInputAction;
+            Assert.IsNotNull(_escapeInputActionRef,
+                "_escapeInputActionRef != null, Create 'EscapeInputAction' in Resources folder");
             Debug.Log($"escapeInputActionRef {_escapeInputActionRef}", _escapeInputActionRef);
         }
 

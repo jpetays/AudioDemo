@@ -26,7 +26,17 @@ namespace Prg
         // Method: https://stackoverflow.com/questions/2483023/how-to-test-if-a-type-is-anonymous
 
 #if FORCE_LOG
+#pragma warning disable CS1030 // #warning directive
 #warning <b>NOTE</b>: Compiling WITH debug logging define <b>FORCE_LOG</b>
+#pragma warning restore CS1030 // #warning directive
+#endif
+
+        #region Bootloader
+
+        private static int _mainThreadId;
+        private static int _currentFrameCount;
+#if UNITY_EDITOR
+        private static bool _isEditorHookSet;
 #endif
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -43,11 +53,11 @@ namespace Prg
         {
             // Reset log line filtering and caching in Editor when we switch form Player Mode to Edit Mode.
 #if UNITY_EDITOR
-            if (_isEditorHook)
+            if (_isEditorHookSet)
             {
                 return;
             }
-            _isEditorHook = true;
+            _isEditorHookSet = true;
             EditorApplication.playModeStateChanged += LogPlayModeState;
             return;
 
@@ -61,100 +71,26 @@ namespace Prg
 #endif
         }
 
-        #region Log formatting and filtering support
+        #endregion
 
-        private const string UnicodeBullet = "•";
-        private static int _mainThreadId;
-        private static int _currentFrameCount;
-        private static bool _isEditorHook;
-
-        static Debug()
-        {
-            // Set initial state for console rich text colours etc..
-            TagColor = "white";
-            ContextColor = "blue";
-            ContextChar = UnicodeBullet;
-        }
-
-        /// <summary>
-        /// Color name for debug log tag.
-        /// </summary>
-        public static string TagColor
-        {
-            set => _tagColorPrefix = $"<color={value}>";
-        }
-
-        /// <summary>
-        /// Color name for debug context 'marker' in tag.
-        /// </summary>
-        public static string ContextColor
-        {
-            set
-            {
-                _contextColor = value;
-                _contextMarker = $"<color={_contextColor}>{_contextChar}</color>";
-            }
-        }
-
-        public static string ContextChar
-        {
-            set
-            {
-                _contextChar = value?.Length > 0 ? value : "*";
-                _contextMarker = $"<color={_contextColor}>{_contextChar}</color>";
-            }
-        }
-
-        private static string _tagColorPrefix;
-        private static string _contextColor;
-        private static string _contextChar;
-        private static string _contextMarker;
+        #region Debug output
 
         /// <summary>
         /// Filter to accept or reject logging based on method.
         /// </summary>
-        public static Func<MethodBase, bool> IsMethodAllowedFilter = _ => true;
+        public static Func<Type, bool> IsMethodAllowedFilter = _ => true;
+
+        public static void ClearMethodCache() => CachedLogLineMethods.Clear();
 
         private static readonly Dictionary<MethodBase, Tuple<bool, string>> CachedLogLineMethods = new();
 
-        public static int GetSafeFrameCount()
+        private static int GetSafeFrameCount()
         {
             if (_mainThreadId == Thread.CurrentThread.ManagedThreadId)
             {
                 _currentFrameCount = Time.frameCount % 1000;
             }
             return _currentFrameCount;
-        }
-
-        /// <summary>
-        /// Remove UNITY Editor color decorations.
-        /// </summary>
-        /// <param name="message">decorated message</param>
-        /// <returns>undecorated message</returns>
-        public static string FilterFormattedMessage(string message)
-        {
-            // Remove all known console specific parts first.
-            message = message
-                .Replace(_contextMarker, "")
-                .Replace(_tagColorPrefix, "")
-                .Replace("</color>", "");
-            // Remove color start tags, if any.
-            const string colorPrefix = "<color=";
-            const string colorSuffix = ">";
-            var pos1 = message.IndexOf(colorPrefix, StringComparison.Ordinal);
-            while (pos1 >= 0)
-            {
-                var pos2 = message.IndexOf(colorSuffix, pos1, StringComparison.Ordinal);
-                if (pos2 <= 0)
-                {
-                    break;
-                }
-                pos2 += colorSuffix.Length;
-                var replacement = message.Substring(pos1, pos2 - pos1);
-                message = message.Replace(replacement, "");
-                pos1 = message.IndexOf(colorPrefix, StringComparison.Ordinal);
-            }
-            return message;
         }
 
         /// <summary>
@@ -168,120 +104,129 @@ namespace Prg
         public static void FormatMessage(LogType logType, string message, Object context,
             string memberName = null, MethodBase method = null)
         {
-            string caller = null;
-            if (!GetClassName())
+            string tag;
+            if (logType is LogType.Log or LogType.Warning)
             {
-                return;
+                if (!IsMethodAllowed(method, memberName, out var caller))
+                {
+                    if (logType is LogType.Log)
+                    {
+                        return;
+                    }
+                }
+                tag =
+#if UNITY_EDITOR
+                    $"{GetSafeFrameCount(),3} [{RichText.White(caller)}]{(context != null ? "*" : string.Empty)}"
+#else
+                    $"{GetSafeFrameCount(),3} [{caller}]"
+#endif
+                    ;
             }
-            var tag =
-                $"{GetSafeFrameCount()} [{_tagColorPrefix}{caller}</color>]{(context != null ? _contextMarker : string.Empty)}";
+            else
+            {
+                tag = $"{GetSafeFrameCount(),3}";
+            }
             UnityEngine.Debug.unityLogger.Log(logType, tag, message, context);
-            return;
+        }
 
-            bool GetClassName()
+        private static bool IsMethodAllowed(MethodBase method, string memberName, out string caller)
+        {
+            if (CachedLogLineMethods.TryGetValue(method, out var cached))
             {
-                if (method == null)
+                caller = cached.Item2;
+                return cached.Item1;
+            }
+            var type = GetTypeFromMethod(method, memberName, out caller);
+            var isAllowed = IsMethodAllowedFilter(type);
+            CachedLogLineMethods.Add(method, new Tuple<bool, string>(isAllowed, caller));
+            return isAllowed;
+        }
+
+        private static Type GetTypeFromMethod(MethodBase method, string memberName, out string caller)
+        {
+            var methodType = method.ReflectedType ?? typeof(Debug);
+            var reflectedTypeName = methodType.Name;
+            var className = reflectedTypeName;
+            if (className.StartsWith("<"))
+            {
+                // For anonymous types we try its parent type.
+                methodType = method.ReflectedType?.DeclaringType ?? typeof(Debug);
+                className = methodType.Name;
+            }
+            var methodName = method.Name;
+            if (!methodName.StartsWith("<"))
+            {
+                if (!reflectedTypeName.StartsWith("<"))
                 {
-                    caller = memberName ?? logType.ToString();
-                    return true;
-                }
-                if (CachedLogLineMethods.TryGetValue(method, out var cached))
-                {
-                    if (!cached.Item1)
+                    if (methodName.Contains('.'))
                     {
-                        return false;
+                        // Explicit interface implementation - just grab last piece that is the method name?
+                        methodName = methodName.Split('.')[^1];
                     }
-                    caller = cached.Item2;
-                    return true;
+                    caller = $"{className}.{methodName}";
+                    return methodType;
                 }
-                var isAllowed = IsMethodAllowedFilter(method);
-                caller = GetCallerName();
-                CachedLogLineMethods.Add(method, new Tuple<bool, string>(isAllowed, caller));
-                return isAllowed;
+            }
+            if (methodName == "MoveNext")
+            {
+                FixIterator();
+            }
+            else
+            {
+                FixLocalOrAnonymousMethod();
+            }
+            caller = $"{className}.{methodName}";
+            return methodType;
+
+            void FixIterator()
+            {
+                // IEnumerator methods have name "MoveNext"
+                // <LoadServicesAsync>d__4
+                const string enumeratorPrefix = "<";
+                const string enumeratorSuffix = ">d__";
+                var pos1 = reflectedTypeName.IndexOf(enumeratorPrefix, StringComparison.Ordinal);
+                if (pos1 >= 0)
+                {
+                    var pos2 = reflectedTypeName.IndexOf(enumeratorSuffix, pos1, StringComparison.Ordinal);
+                    if (pos2 > 0)
+                    {
+                        pos1 += enumeratorPrefix.Length;
+                        var iteratorName = reflectedTypeName.Substring(pos1, pos2 - pos1);
+                        methodName = $"{iteratorName}";
+                    }
+                }
             }
 
-            string GetCallerName()
+            void FixLocalOrAnonymousMethod()
             {
-                var reflectedType = method.ReflectedType?.Name ?? "CLASS";
-                var className = reflectedType;
-                if (className.StartsWith("<"))
+                // Local methods are compiled to internal static methods with a name of the following form:
+                // <Name1>g__Name2|x_y
+                // Name1 is the name of the surrounding method. Name2 is the name of the local method.
+                const string localMethodPrefix = ">g__";
+                const string localMethodSuffix = "|";
+                var pos1 = methodName.IndexOf(localMethodPrefix, StringComparison.Ordinal);
+                if (pos1 > 0)
                 {
-                    // For anonymous types we try its parent type.
-                    className = method.ReflectedType?.DeclaringType?.Name ?? "CLASS";
-                }
-                var methodName = method.Name;
-                if (!methodName.StartsWith("<"))
-                {
-                    if (!reflectedType.StartsWith("<"))
+                    pos1 += localMethodPrefix.Length;
+                    var pos2 = methodName.IndexOf(localMethodSuffix, pos1, StringComparison.Ordinal);
+                    if (pos2 > 0)
                     {
-                        if (methodName.Contains('.'))
-                        {
-                            // Explicit interface implementation - just grab last piece that is the method name?
-                            methodName = methodName.Split('.')[^1];
-                        }
-                        return $"{className}.{methodName}";
+                        var localName = methodName.Substring(pos1, pos2 - pos1);
+                        methodName = $"{memberName}.{localName}";
                     }
                 }
-                if (methodName == "MoveNext")
+                // 'Wrapped' anonymous lambda method.
+                // <Name1>b__41_0
+                const string lambdaMethodPrefix = "<";
+                const string lambdaMethodSuffix = ">b__";
+                pos1 = methodName.IndexOf(lambdaMethodPrefix, StringComparison.Ordinal);
+                if (pos1 == 0)
                 {
-                    FixIterator();
-                }
-                else
-                {
-                    FixLocalMethod();
-                }
-                return $"{className}.{methodName}";
-
-                void FixIterator()
-                {
-                    // IEnumerator methods have name "MoveNext"
-                    // <LoadServicesAsync>d__4
-                    const string enumeratorPrefix = "<";
-                    const string enumeratorSuffix = ">d__";
-                    var pos1 = reflectedType.IndexOf(enumeratorPrefix, StringComparison.Ordinal);
-                    if (pos1 >= 0)
+                    pos1 += lambdaMethodPrefix.Length;
+                    var pos2 = methodName.IndexOf(lambdaMethodSuffix, pos1, StringComparison.Ordinal);
+                    if (pos2 > 0)
                     {
-                        var pos2 = reflectedType.IndexOf(enumeratorSuffix, pos1, StringComparison.Ordinal);
-                        if (pos2 > 0)
-                        {
-                            pos1 += enumeratorPrefix.Length;
-                            var iteratorName = reflectedType.Substring(pos1, pos2 - pos1);
-                            methodName = $"{iteratorName}";
-                        }
-                    }
-                }
-
-                void FixLocalMethod()
-                {
-                    // Local methods are compiled to internal static methods with a name of the following form:
-                    // <Name1>g__Name2|x_y
-                    // Name1 is the name of the surrounding method. Name2 is the name of the local method.
-                    const string localMethodPrefix = ">g__";
-                    const string localMethodSuffix = "|";
-                    var pos1 = methodName.IndexOf(localMethodPrefix, StringComparison.Ordinal);
-                    if (pos1 > 0)
-                    {
-                        pos1 += localMethodPrefix.Length;
-                        var pos2 = methodName.IndexOf(localMethodSuffix, pos1, StringComparison.Ordinal);
-                        if (pos2 > 0)
-                        {
-                            var localName = methodName.Substring(pos1, pos2 - pos1);
-                            methodName = $"{memberName}.{localName}";
-                        }
-                    }
-                    // 'Wrapped' anonymous lambda method.
-                    // <Name1>b__41_0
-                    const string lambdaMethodPrefix = "<";
-                    const string lambdaMethodSuffix = ">b__";
-                    pos1 = methodName.IndexOf(lambdaMethodPrefix, StringComparison.Ordinal);
-                    if (pos1 == 0)
-                    {
-                        pos1 += lambdaMethodPrefix.Length;
-                        var pos2 = methodName.IndexOf(lambdaMethodSuffix, pos1, StringComparison.Ordinal);
-                        if (pos2 > 0)
-                        {
-                            methodName = methodName.Substring(pos1, pos2 - pos1);
-                        }
+                        methodName = $"{methodName.Substring(pos1, pos2 - pos1)}.(a)";
                     }
                 }
             }
