@@ -73,4 +73,4 @@ This demo has has been briefly tested on following platforms:
 * Android ☑
 * WebGL ⛔ ⛅
 
-(⛅) _Music can be played but volume can not. Chaning volume for individual UNITY AudioSources requires different solution._
+(⛅) _Music can be played but volume can not be changed. Changing volume for individual UNITY AudioSources requires different solution._
