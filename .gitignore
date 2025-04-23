@@ -103,6 +103,9 @@ crashlytics-build.properties
 # Windows desktop shortcuts
 /*.lnk
 
+# --- NuGetForUnity (https://github.com/GlitchEnzo/NuGetForUnity)
+/[Aa]ssets/Packages
+
 # --- This Project private settings
 
 # Local dev config asset files
