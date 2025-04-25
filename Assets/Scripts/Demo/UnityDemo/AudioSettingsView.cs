@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Demo.Audio
+namespace Demo.UnityDemo
 {
     /// <summary>
     /// <c>AudioSettingsView</c> for game audio settings UI.

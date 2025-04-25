@@ -2,7 +2,7 @@ using Prg.PubSub;
 using UnityEngine;
 using Debug = Prg.Debug;
 
-namespace Demo.Audio
+namespace Demo.UnityDemo
 {
     public record AudioNotification
     {

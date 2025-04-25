@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Demo.Audio
+namespace Demo.UnityDemo
 {
     /// <summary>
     /// <c>AudioSliderComponent</c> UI component for audio effects using audio sample to play when volume is changed.

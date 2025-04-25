@@ -1,3 +1,4 @@
+using Demo.Audio;
 using Prg;
 using TMPro;
 using UnityEngine;
@@ -7,7 +8,7 @@ using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Debug = Prg.Debug;
 
-namespace Demo.Audio
+namespace Demo.UnityDemo
 {
     /// <summary>
     /// <c>AudioSliderComponent</c> UI component.

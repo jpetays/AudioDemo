@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aaa8e5d44482dbd4482820907ef78648, type: 3}
-  m_Name: 00-Loader
+  m_Name: UnityDemo
   m_EditorClassIdentifier: 
   _sceneName:
-    _sceneName: 00-Loader
+    _sceneName: UnityDemo
     _sceneGuid: 2cda990e2423bbf4892e6590ba056729
   _isNetworkScene: 0

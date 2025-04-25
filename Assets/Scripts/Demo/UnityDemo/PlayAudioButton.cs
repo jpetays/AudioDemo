@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
 
-namespace Demo
+namespace Demo.UnityDemo
 {
     /// <summary>
     /// Plays given <c>AudioSource</c>s on button click.

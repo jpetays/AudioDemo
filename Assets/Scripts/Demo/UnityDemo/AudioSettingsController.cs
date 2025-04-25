@@ -3,7 +3,7 @@ using Prg.PubSub;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Demo.Audio
+namespace Demo.UnityDemo
 {
     /// <summary>
     /// <c>AudioSettingsController</c> to manage game audio settings UI.
