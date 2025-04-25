@@ -86,7 +86,7 @@ public static class AppPlatform
     /// <summary>
     /// Windows platform can be editor, player or server.
     /// </summary>
-    public static bool IsWindows { get; } = Application.platform is
+    public static bool IsWindows => Application.platform is
         RuntimePlatform.WindowsEditor or RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsServer;
 
     /// <summary>
@@ -101,7 +101,7 @@ public static class AppPlatform
     /// Gets <c>Screen</c> info with current window size (if not full screen).
     /// </summary>
     /// <returns></returns>
-    public static string Resolution()
+    public static string ScreeInfo()
     {
         var screen = $"{Screen.currentResolution.width}x{Screen.currentResolution.height}";
         if (Screen.currentResolution.width != Screen.width || Screen.currentResolution.height != Screen.height)
@@ -117,7 +117,7 @@ public static class AppPlatform
         return $"{screen} {refreshRate:0}Hz";
     }
 
-    public static bool CanExit => !(
+    private static bool PlatformCanExit => !(
         // NOP - There is no API provided for gracefully terminating an iOS application.
         Application.platform == RuntimePlatform.IPhonePlayer ||
         // NOP - no can do in browser
@@ -126,7 +126,7 @@ public static class AppPlatform
 
     public static void ExitGracefully()
     {
-        if (Application.platform == RuntimePlatform.WindowsEditor)
+        if (Application.platform is RuntimePlatform.WindowsEditor or RuntimePlatform.LinuxEditor or RuntimePlatform.OSXEditor)
         {
 #if UNITY_EDITOR
             Debug.Log(RichText.Yellow("stop playing"));
@@ -134,7 +134,7 @@ public static class AppPlatform
 #endif
             return;
         }
-        if (CanExit)
+        if (PlatformCanExit)
         {
             // Android, desktop, etc. goes here
             Application.Quit(0);

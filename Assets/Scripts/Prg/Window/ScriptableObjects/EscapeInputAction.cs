@@ -16,9 +16,11 @@ namespace Prg.Window.ScriptableObjects
         private const string Notes = "InputActionReference for Escape (Android 'back' key) handling.\r\n" +
                                      "\r\n" +
                                      "This is loaded using Resources.Load by EscapeKeyHandler.\r\n" +
-                                     "We can use UNITY default 'UI/Cancel' Input Action for this purpose.\r\n" +
+                                     "We can and should use UNITY default 'UI/Cancel' Input Action for our purposes.\r\n" +
                                      "The reference for 'DefaultInputActions' can be found in:\r\n" +
-                                     "Packages/InputSystem/InputSystem/Plugins/PlayerInput";
+                                     "Packages/InputSystem/InputSystem/Plugins/PlayerInput\r\n" +
+                                     "\r\n" +
+                                     "Note that in WebGL builds 'raw' ESC key handling is browser and platform dependent.";
 
         // ReSharper disable once NotAccessedField.Local
         [SerializeField, Header("Notes"), HelpBox(Notes)] private string _notes;

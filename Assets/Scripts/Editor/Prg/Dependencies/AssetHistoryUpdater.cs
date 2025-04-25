@@ -12,7 +12,9 @@ using Debug = Prg.Debug;
 namespace Editor.Prg.Dependencies
 {
     /// <summary>
-    /// Public constants for <c>AssetHistory</c>.
+    /// Entry point for <c>AssetHistory</c>, used for solving the Missing Prefab issue in Unity3d.<br />
+    /// Most of resources used are long time ago forgotten, below is one that was found:
+    /// https://medium.com/codex/solving-the-missing-prefab-issue-in-unity3d-ae5ba0a15ee9
     /// </summary>
     public static class AssetHistory
     {

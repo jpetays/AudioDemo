@@ -36,8 +36,6 @@ namespace Editor.Prg.Localization
         private const string MenuRoot = "Prg/";
         private const string MenuItemRoot = MenuRoot + "Localization/";
 
-        private const string UpdateLocalizationGameObjectName = "Update GameObject Localization!";
-
         private const string AddLocalizationName = "Add Prefab Localization!";
         private const string UpdateLocalizationName = "Update Prefab Localization!";
         private const string RemoveLocalizationName = "Remove Prefab Localization!";
@@ -161,7 +159,7 @@ namespace Editor.Prg.Localization
                 InternalEditorUtility.OpenFileAtLineExternal(path, 1);
                 return;
             }
-            Debug.Log($"Editor log {RichText.Brown("NOT FOUND")}: {path}");
+            Debug.Log($"file {RichText.Brown("NOT FOUND")}: {path}");
         }
 
         [MenuItem(MenuItemRoot + CopyMissingKeysClipboardName, true, 0)]

@@ -2,18 +2,23 @@ using System;
 using System.Collections;
 using Prg.Window.ScriptableObjects;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Prg.Window
 {
-    public interface IExitLevelMessage
+    /// <summary>
+    /// OnExitLevel custom event listener.
+    /// </summary>
+    public interface IExitLevelMessage: IEventSystemHandler
     {
         void OnExitLevel();
     }
 
     /// <summary>
-    /// Enhanced <c>NaviButton</c> that broadcasts a message before opening the next window.
+    /// Enhanced <c>NaviButton</c> that sends OnExitLevel custom event before opening the next window.<br />
+    /// https://docs.unity3d.com/Packages/com.unity.ugui@2.0/manual/MessagingSystem.html
     /// </summary>
     [RequireComponent(typeof(Button))]
     public class ExitLevelButton : MonoBehaviour
@@ -46,17 +51,13 @@ namespace Prg.Window
             });
         }
 
-        private void OnExitLevel()
-        {
-            // Method name for the IExitLevelMessage interface
-        }
-
         private IEnumerator DoNaviButtonClick()
         {
             yield return new WaitForEndOfFrame();
             GetRootGameObjects(rootGameObject =>
             {
-                rootGameObject.BroadcastMessage(nameof(OnExitLevel), SendMessageOptions.DontRequireReceiver);
+                ExecuteEvents.Execute<IExitLevelMessage>(rootGameObject, null,
+                    (x, _) => x.OnExitLevel());
             });
             yield return null;
             Debug.Log($"naviTarget {_naviTarget} isCurrentPopOutWindow {_isCurrentPopOutWindow}", _naviTarget);

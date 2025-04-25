@@ -12,6 +12,7 @@ namespace Prg.Localization
     public static class TsvLoader
     {
         private const char Tab = '\t';
+        private const string EofMarkerText = "zzz eof #";
 
         public static Dictionary<string, Dictionary<string, string>> Load(TextAsset textAsset,
             out List<string> localeCodes)
@@ -43,7 +44,7 @@ namespace Prg.Localization
             }
         }
 
-        private static Dictionary<string, Dictionary<string, string>> Empty(out List<string> localeCodes)
+        public static Dictionary<string, Dictionary<string, string>> Empty(out List<string> localeCodes)
         {
             localeCodes = new List<string>();
             return new Dictionary<string, Dictionary<string, string>>();
@@ -80,18 +81,21 @@ namespace Prg.Localization
             }
             var localeCount = localeCodes.Count;
             var errorCount = 0;
+            var eofMarkerFound = false;
             for (var i = 1; i < lines.Length; ++i)
             {
                 var line = lines[i];
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                if (string.IsNullOrWhiteSpace(line))
                 {
-                    // Allow empty lines and comment lines.
+                    // Skip empty lines.
                     continue;
                 }
                 var words = line.Split(Tab);
                 if (words.Length < 1 + localeCount)
                 {
-                    throw new UnityException($"invalid line: '{line}'");
+                    Debug.LogError($"invalid line {i}: '{line}'");
+                    errorCount += 1;
+                    continue;
                 }
                 try
                 {
@@ -99,6 +103,10 @@ namespace Prg.Localization
                     if (key.EndsWith('#'))
                     {
                         // Allow comment char after key so that lines can be sorted by the key.
+                        if (!eofMarkerFound)
+                        {
+                            eofMarkerFound = line.StartsWith(EofMarkerText);
+                        }
                         continue;
                     }
                     // Read only those columns that have a locale code.
@@ -140,6 +148,10 @@ namespace Prg.Localization
                     var line = lines[i];
                     Debug.Log($"{i,-4} {line}");
                 }
+            }
+            else if (!eofMarkerFound)
+            {
+                Debug.LogWarning($"EOF MARKER LINE not found starting with text: ${EofMarkerText}");
             }
             return localeWords;
         }

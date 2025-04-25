@@ -14,6 +14,7 @@ namespace Prg.Window
 
         private void OnEnable()
         {
+            Debug.Log($"RegisterGoBackHandlerOnce {_hookedWindow}", _hookedWindow);
             WindowManager.Get().RegisterGoBackHandlerOnce(ShowWindow);
         }
 
@@ -28,7 +29,7 @@ namespace Prg.Window
         private WindowManager.GoBackAction ShowWindow()
         {
             var windowManager = WindowManager.Get();
-            Debug.Log($"start {_hookedWindow} WindowCount {windowManager.WindowCount}");
+            Debug.Log($"start {_hookedWindow} WindowCount {windowManager.WindowCount}", _hookedWindow);
             windowManager.ShowWindow(_hookedWindow);
             Debug.Log($"done {_hookedWindow}");
             return WindowManager.GoBackAction.Abort;

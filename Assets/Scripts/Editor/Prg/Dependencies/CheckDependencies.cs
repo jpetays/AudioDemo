@@ -21,7 +21,6 @@ namespace Editor.Prg.Dependencies
 
         public static void CheckAssetUsage(string[] selectedGuids)
         {
-            Debug.Log("*");
             if (selectedGuids.Length == 0)
             {
                 Debug.Log("Nothing is selected");

@@ -1,4 +1,5 @@
 using Editor.Prg.Dependencies;
+using Prg;
 using Prg.Localization;
 using TMPro;
 using UnityEditor;
@@ -93,10 +94,10 @@ namespace Editor.Prg.EditorSupport
                 }
             }
             GUI.backgroundColor = Color.green;
-            if (GUILayout.Button("Find All Similar Keys"))
+            if (GUILayout.Button("Find Keys that Contains this Key"))
             {
                 var serializedProperty = serializedObject.FindProperty(nameof(Localized._key));
-                FindAllSimilarKeys(serializedProperty.stringValue);
+                FindAllSimilarKeys(serializedProperty.stringValue, serializedObject.targetObject);
             }
             GUI.backgroundColor = bgColorBefore;
             GUILayout.Space(20);
@@ -197,11 +198,12 @@ namespace Editor.Prg.EditorSupport
             return null;
         }
 
-        private static void FindAllSimilarKeys(string localizationKey)
+        private static void FindAllSimilarKeys(string localizationKey, Object context)
         {
+            Debug.Log($"find key={localizationKey}", context);
             CheckReferences.CheckComponentsInPrefabs<Localized>(localized =>
             {
-                if (localized._key.StartsWith(localizationKey))
+                if (localized._key.Contains(localizationKey))
                 {
                     Key(localized);
                 }
@@ -210,7 +212,7 @@ namespace Editor.Prg.EditorSupport
 
         private static void Key(Localized localized)
         {
-            Debug.Log($"{localized}", localized);
+            Debug.Log($"{localized} path={localized.GetFullPath()}", localized);
         }
     }
 }

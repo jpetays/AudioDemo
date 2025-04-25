@@ -302,7 +302,7 @@ namespace Editor.Prg.Localization
                 var gameObject = component.gameObject;
                 if (component is Localized localized)
                 {
-                    if (gameObject.CompareTag(Localized.NoLocalize))
+                    if (gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         counters.NoLocalize += 1;
                         continue;
@@ -314,7 +314,7 @@ namespace Editor.Prg.Localization
                 }
                 else if (component is TMP_Text text)
                 {
-                    if (gameObject.CompareTag(Localized.NoLocalize))
+                    if (gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         counters.NoLocalize += 1;
                         continue;
@@ -335,7 +335,7 @@ namespace Editor.Prg.Localization
                 }
                 else if (component is Button)
                 {
-                    if (gameObject.CompareTag(Localized.NoLocalize))
+                    if (gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         counters.NoLocalize += 1;
                         continue;
@@ -346,7 +346,7 @@ namespace Editor.Prg.Localization
                 }
                 else if (component is Toggle)
                 {
-                    if (gameObject.CompareTag(Localized.NoLocalize))
+                    if (gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         counters.NoLocalize += 1;
                         continue;

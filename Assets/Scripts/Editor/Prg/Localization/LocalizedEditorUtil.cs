@@ -66,7 +66,7 @@ namespace Editor.Prg.Localization
             var newTextComponentCount = 0;
             foreach (var textComponent in textComponents)
             {
-                if (textComponent.gameObject.CompareTag(Localized.NoLocalize))
+                if (textComponent.gameObject.CompareTag(Localized.NoLocalizeTag))
                 {
                     continue;
                 }
@@ -152,7 +152,7 @@ namespace Editor.Prg.Localization
             {
                 foreach (var textComponent in textComponents)
                 {
-                    if (textComponent.gameObject.CompareTag(Localized.NoLocalize))
+                    if (textComponent.gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         Debug.Log(
                             $"{RichText.White("Remove NoLocalize Tag")} {textComponent.GetFullPath()} | {Localized.SanitizeText(textComponent.text)}",
@@ -194,12 +194,12 @@ namespace Editor.Prg.Localization
             {
                 foreach (var textComponent in textComponents)
                 {
-                    if (!textComponent.gameObject.CompareTag(Localized.NoLocalize))
+                    if (!textComponent.gameObject.CompareTag(Localized.NoLocalizeTag))
                     {
                         Debug.Log(
                             $"{RichText.White("Set NoLocalize Tag")} {textComponent.GetFullPath()} | {Localized.SanitizeText(textComponent.text)}",
                             textComponent);
-                        textComponent.gameObject.tag = Localized.NoLocalize;
+                        textComponent.gameObject.tag = Localized.NoLocalizeTag;
                     }
                 }
             }

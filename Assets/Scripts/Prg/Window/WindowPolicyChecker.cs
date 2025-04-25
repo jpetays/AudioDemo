@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using Prg.Util;
 using Prg.Window.ScriptableObjects;
 using TMPro;
@@ -43,6 +44,10 @@ namespace Prg.Window
                 }
                 _isWarning = !_windowPolicies.Fonts.LogAsError;
                 _isShowFullPath = _windowPolicies.Fonts.ShowFullPath;
+            }
+            if (_windowPolicies.Debug.LogAllCheckedCanvases)
+            {
+                Debug.Log($"{RichText.Yellow(canvas.name)}", canvas);
             }
             if (_windowPolicies.Debug.AddButtonClickLogger)
             {
@@ -96,6 +101,62 @@ namespace Prg.Window
                     continue;
                 }
                 CheckFontName(components, text, knownFontNames, text.font.name);
+            }
+            var scrollRectSettings = _windowPolicies.ScrollRect;
+            foreach (var scrollRect in canvas.GetComponentsInChildren<ScrollRect>(includeInactive: true))
+            {
+                if (!Mathf.Approximately(scrollRect.scrollSensitivity, scrollRectSettings.DefaultScrollSensitivity))
+                {
+                    if (scrollRectSettings.FixScrollSensitivity)
+                    {
+                        Debug.LogWarning(
+                            $"scrollRect {ScrollRectInfo(scrollRect)} {RichText.Yellow("FIXED")}", scrollRect);
+                        scrollRect.scrollSensitivity = scrollRectSettings.DefaultScrollSensitivity;
+                    }
+                    else
+                    {
+                        Debug.LogWarning(
+                            $"scrollRect {ScrollRectInfo(scrollRect)} {RichText.Yellow("Sensitivity!")}", scrollRect);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"scrollRect {ScrollRectInfo(scrollRect)}", scrollRect);
+                }
+            }
+            return;
+
+            string ScrollRectInfo(ScrollRect scrollRect)
+            {
+                var builder =
+                    new StringBuilder($"{scrollRect.name}");
+                if (scrollRect.horizontal && scrollRect.vertical)
+                {
+                    builder.Append($" BOTH");
+                }
+                else if (scrollRect.horizontal)
+                {
+                    builder.Append($" HORIZ");
+                }
+                else if (scrollRect.vertical)
+                {
+                    builder.Append($" VERT");
+                }
+                else
+                {
+                    builder.Append($" NONE");
+                }
+                builder.Append($" {scrollRect.movementType}");
+                if (scrollRect.movementType == ScrollRect.MovementType.Elastic)
+                {
+                    builder.Append($" elasticity {scrollRect.elasticity:0.00}");
+                }
+                if (scrollRect.inertia)
+                {
+                    builder.Append($" inertia {scrollRect.decelerationRate:0.00}");
+                }
+                builder.Append($" sensitivity {scrollRect.scrollSensitivity:0.00}");
+                return builder.ToString();
             }
         }
 

@@ -1,8 +1,9 @@
+using System;
 using NaughtyAttributes;
 using Prg.Util;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.Assertions;
 
 namespace Prg.Localization
 {
@@ -19,17 +20,29 @@ namespace Prg.Localization
     /// </summary>
     public class Localized : MonoBehaviour
     {
-        public const string NoLocalize = nameof(NoLocalize);
-        public const string EmptyMarkerValue = "EMPTY_TEXT";
+        /// <summary>
+        /// NoLocalizeTag is used to skip localization and must be set externally to take effect.
+        /// </summary>
+        public static string NoLocalizeTag;
 
-        public const char KeySeparator = '.';
+        public static Func<string, string> VariableReplacer;
+
+        private const string EmptyMarkerValue = "EMPTY_TEXT";
+        private const char KeySeparator = '.';
+        private const string PrefabCanvasEnvironment = "Canvas (Environment)/";
 
         public static string KeyFrom(Component component)
         {
-            return component.GetFullPath().Replace('/', KeySeparator);
+            var path = component.GetFullPath();
+            if (path.StartsWith(PrefabCanvasEnvironment))
+            {
+                path = path.Remove(0, PrefabCanvasEnvironment.Length);
+            }
+            return path.Replace('/', KeySeparator);
         }
 
         [Header("Settings")] public bool _isManualUpdate;
+        public bool _useVariableReplacement;
         public string _key;
         [ReadOnly, AllowNesting] public string _defaultText;
 
@@ -78,11 +91,19 @@ namespace Prg.Localization
 
         private void OnEnable()
         {
-            MyAssert.AreNotEqual(LocalizedComponentType.Unknown, _componentType, "valid componentType is required",
-                this);
-            this.Localize();
+            MyAssert.AreNotEqual(LocalizedComponentType.Unknown, _componentType,
+                "valid componentType is required", this);
+            if (_useVariableReplacement)
+            {
+                this.Localize(VariableReplacer);
+            }
+            else
+            {
+                this.Localize();
+            }
 #if UNITY_EDITOR
-            if (gameObject.CompareTag(NoLocalize))
+            Assert.AreNotEqual("", NoLocalizeTag);
+            if (gameObject.CompareTag(NoLocalizeTag))
             {
                 SetColor(Localizer.MissingKeyColor);
                 Debug.LogError($"NoLocalize Tag in: {this.GetFullPath()}", this);
@@ -102,7 +123,7 @@ namespace Prg.Localization
             text = RegexUtil.ReplaceCrLf(text, ". ");
             if (text.Length == 0)
             {
-                text = Localized.EmptyMarkerValue;
+                text = EmptyMarkerValue;
             }
             return text.Length > 50 ? text[..50] : text;
         }

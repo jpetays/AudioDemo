@@ -76,21 +76,21 @@ namespace Prg.Localization
                 writer.Write(localeKey);
                 var locale = dictionary[localeKey];
                 writer.Write(locale.Count);
-                foreach (var entry in locale)
+                foreach (var (key, phrase) in locale)
                 {
-                    writer.Write(entry.Key);
-                    if (entry.Value.Contains('\n'))
+                    writer.Write(key);
+                    if (phrase.Contains('\n'))
                     {
-                        var pos1 = entry.Value.IndexOf('\r');
-                        var pos2 = entry.Value.IndexOf('\n');
+                        var pos1 = phrase.IndexOf('\r');
+                        var pos2 = phrase.IndexOf('\n');
                         if (pos2 - pos1 != 1)
                         {
                             throw new UnityException(
-                                $"dictionary key {entry.Key} has invalid CR-LF values: " +
-                                $"'{entry.Value.Replace('\r', '$').Replace('\n', '$')}'");
+                                $"dictionary key {key} has invalid CR-LF values: " +
+                                $"'{phrase.Replace('\r', '$').Replace('\n', '$')}'");
                         }
                     }
-                    writer.Write(entry.Value);
+                    writer.Write(phrase);
                 }
             }
 

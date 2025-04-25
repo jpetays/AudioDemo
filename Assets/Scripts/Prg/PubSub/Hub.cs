@@ -96,8 +96,9 @@ namespace Prg.PubSub
 
             public override string ToString()
             {
+                var method = Action.Method;
                 return
-                    $"Action={Action.Method.Name} Subscriber={Subscriber} Type={MessageType.Name}";
+                    $"Action={method.DeclaringType}/{method.Name} Message={MessageType.Name} Subscriber={Subscriber}";
             }
 
             public class SelectorWrapper<T>
@@ -187,37 +188,52 @@ namespace Prg.PubSub
                 }
             }
 
-            foreach (var handler in handlersToCall)
+            try
             {
-                if (!handler.Select(data))
+                foreach (var handler in handlersToCall)
                 {
-                    continue;
-                }
-                var subscriber = handler.Subscriber;
-                if (subscriber.IsWeakRef)
-                {
-                    // Get reference to subscriber's target 1) to find that is is alive now and 2) to keep it alive during the callback.
-                    var target = subscriber.Target;
-                    if (target == null)
+                    if (!handler.Select(data))
                     {
                         continue;
                     }
-                    ((Action<T>)handler.Action)(data);
+                    var subscriber = handler.Subscriber;
+                    if (subscriber.IsWeakRef)
+                    {
+                        // Get reference to subscriber's target
+                        // 1) to find that is is alive now and
+                        // 2) to keep it alive during the callback.
+                        var target = subscriber.Target;
+                        if (target == null)
+                        {
+                            continue;
+                        }
+                        ((Action<T>)handler.Action)(data);
 
-                    // References the specified object, which makes it ineligible for garbage collection
-                    // from the start of the current routine to the point where this method is called.
-                    GC.KeepAlive(target);
-                }
-                else
-                {
-                    // Just check that target exists in UNITY
-                    var target = subscriber.Target;
-                    if (target == null)
-                    {
-                        continue;
+                        // References the specified object, which makes it ineligible for garbage collection
+                        // from the start of the current routine to the point where this method is called.
+                        GC.KeepAlive(target);
                     }
-                    ((Action<T>)handler.Action)(data);
+                    else
+                    {
+                        // Just check that target exists in UNITY side
+                        var target = subscriber.Target;
+                        if (target == null)
+                        {
+                            continue;
+                        }
+                        ((Action<T>)handler.Action)(data);
+                    }
                 }
+            }
+            catch (Exception x)
+            {
+#if !PUBSUB_THREADS
+                // It seems that Cysharp.Threading.Tasks.EnumeratorAsyncExtensions/EnumeratorPromise:MoveNext
+                // or similar might swallow or defer callback exceptions.
+                // We log then here to indicate that something went wrong.
+                Debug.LogError($"handler failed: {x}");
+#endif
+                throw;
             }
         }
 

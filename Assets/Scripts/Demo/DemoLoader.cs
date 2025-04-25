@@ -1,10 +1,12 @@
 using System.Collections;
 using System.IO;
 using System.Text;
+using Demo;
 using Demo.Audio;
 using Microsoft.Extensions.Logging;
 using Prg;
 using Prg.Util;
+using Prg.Window;
 using UnityEngine;
 using ZLogger;
 using ZLogger.Unity;
@@ -61,6 +63,7 @@ internal class DemoLoader : MonoBehaviour
         var loader = parent.AddComponent<DemoLoader>();
         // Start async services ASAP.
         loader.StartCoroutine(LoadServicesAsync());
+        WindowLoader.ValidateWindowLoaderTag("WindowLoader");
     }
 
     private void Awake()
@@ -69,7 +72,7 @@ internal class DemoLoader : MonoBehaviour
             .Append(" Game ").Append(Application.productName)
             .Append(" Ver ").Append(Application.version)
             .Append(" Plat ").Append(AppPlatform.IsSimulator ? "Simulator" : AppPlatform.Name)
-            .Append(" Screen ").Append(AppPlatform.Resolution())
+            .Append(" Screen ").Append(AppPlatform.ScreeInfo())
             .ToString();
         Logger.ZLogTrace($"{startupMessage}");
     }

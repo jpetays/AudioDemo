@@ -23,8 +23,6 @@ namespace Prg.Localization
     {
         private static readonly string TsvFilename = Path.Combine(".", "etc", "localization", "game_localizations.tsv");
 
-        public static IVariableSubstitution VariableSubstitution = new DefaultVariableSubstitution();
-
         public static bool IsShowMissingKey;
         public static bool IsShowMissingKeyColor;
         public static Color MissingKeyColor;
@@ -55,11 +53,14 @@ namespace Prg.Localization
 
         #region Public Localization API
 
+        public static string CurrentLocale => _currentLocaleCode;
+
         /// <summary>
         /// Localize text using <c>Localized</c> component.
         /// </summary>
         /// <param name="localized">the component to localize</param>
-        public static void Localize(this Localized localized)
+        /// <param name="variableReplacer">optional callback to replace variables in localized result</param>
+        public static void Localize(this Localized localized, Func<string, string> variableReplacer = null)
         {
             if (!Localize(localized._key, localized, out var text))
             {
@@ -76,7 +77,11 @@ namespace Prg.Localization
                 // Use default text!
                 text = localized._defaultText;
             }
-            localized.SetText(VariableSubstitution.Substitute(text));
+            if (variableReplacer != null)
+            {
+                text = variableReplacer(text);
+            }
+            localized.SetText(text);
         }
 
         /// <summary>
@@ -101,7 +106,7 @@ namespace Prg.Localization
                 // Use current text!
                 text = textMeshPro.text;
             }
-            textMeshPro.text = VariableSubstitution.Substitute(text);
+            textMeshPro.text = text;
         }
 
         /// <summary>
@@ -122,7 +127,6 @@ namespace Prg.Localization
                 }
                 return false;
             }
-            text = VariableSubstitution.Substitute(text);
             return true;
         }
 
@@ -145,7 +149,7 @@ namespace Prg.Localization
                 }
                 return key;
             }
-            return VariableSubstitution.Substitute(text);
+            return text;
         }
 
         private static string FormatMissingKey(string key) => $"[{key}]";
@@ -184,11 +188,6 @@ namespace Prg.Localization
         }
 #endif
 
-        private class DefaultVariableSubstitution : IVariableSubstitution
-        {
-            public string Substitute(string text) => text;
-        }
-
         #endregion
 
         #region Data loader
@@ -213,16 +212,22 @@ namespace Prg.Localization
         /// <param name="textAsset">textAsset for localization data in .tsv format</param>
         public static void LoadLocalizations(string localeCode, TextAsset textAsset)
         {
-#if UNITY_EDITOR
-            MissingKeys.Clear();
-            ValidateOrCreateBinFile(textAsset);
-#endif
-            var timer = new Timer();
-            // ReSharper disable once InlineOutVariableDeclaration
             List<string> localeCodes;
-            _locales = TsvLoader.Load(textAsset, out localeCodes);
-            timer.Stop();
-            Debug.Log($"bin load {timer.ElapsedTime}");
+            if (textAsset == null)
+            {
+                _locales = TsvLoader.Empty(out localeCodes);
+            }
+            else
+            {
+#if UNITY_EDITOR
+                MissingKeys.Clear();
+                ValidateOrCreateBinFile(textAsset);
+#endif
+                var timer = new Timer();
+                _locales = TsvLoader.Load(textAsset, out localeCodes);
+                timer.Stop();
+                Debug.Log($"bin load {timer.ElapsedTime}");
+            }
             if (_locales.TryGetValue(localeCode, out _currentLocale))
             {
                 _currentLocaleCode = localeCode;
@@ -260,24 +265,18 @@ namespace Prg.Localization
 #if UNITY_EDITOR
         public static void ResetLocalizations(TextAsset textAsset)
         {
-            ValidateOrCreateBinFile(textAsset, forceCreate: true);
+            ValidateOrCreateBinFile(textAsset);
         }
 
-        private static void ValidateOrCreateBinFile(TextAsset textAsset, bool forceCreate = false)
+        private static void ValidateOrCreateBinFile(TextAsset textAsset)
         {
-            if (textAsset == null)
-            {
-                Debug.LogError("*");
-                Debug.LogError("* Localizer TextAsset is NULL, it must be created manually");
-                Debug.LogError("*");
-            }
             if (!File.Exists(TsvFilename))
             {
                 CreateTsvFile(TsvFilename);
             }
             var tsvWriteTime = File.GetLastWriteTime(TsvFilename);
             var binPath = TextAssetUtil.GetAssetPathFrom(textAsset);
-            var binWriteTime = forceCreate || !File.Exists(binPath)
+            var binWriteTime = !File.Exists(binPath) || textAsset.text.Length == 0
                 ? DateTime.MinValue
                 : File.GetLastWriteTime(binPath);
 
@@ -287,11 +286,11 @@ namespace Prg.Localization
             {
                 return;
             }
+            Debug.LogWarning($"update {binPath}");
+            // File.Copy makes LastWriteTime to be the same and we want to update it for clarity.
             File.Copy(TsvFilename, binPath, overwrite: true);
-            if (forceCreate)
-            {
-                AssetDatabase.Refresh();
-            }
+            File.SetLastWriteTime(binPath, DateTime.Now);
+            AssetDatabase.Refresh();
             return;
 
             void CreateTsvFile(string filename)

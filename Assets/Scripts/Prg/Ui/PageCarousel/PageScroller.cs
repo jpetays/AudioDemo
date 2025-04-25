@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 #endregion
 
@@ -15,9 +16,67 @@ namespace Prg.Ui.PageCarousel
     /// The PageScroller class manages scrolling within a PageSlider component. 
     /// It handles user interaction for swiping between pages and snapping to the closest page on release.
     /// </summary>
+    /// <remarks>
+    /// Set (increase) <c>EventSystem.pixelDragThreshold</c> value if you have buttons etc. that
+    /// do not behave well if pixelDragThreshold value is too low.<br />
+    /// Increasing it helps the UI to work more intuitively.
+    /// </remarks>
     [SuppressMessage("ReSharper", "InconsistentNaming")]
+    [RequireComponent(typeof(ScrollView))]
     public class PageScroller : MonoBehaviour, IBeginDragHandler, IEndDragHandler
     {
+        #region Button over ScrollView example event traces
+
+        /*
+            Pointer is pressed down over button and dragged to the left, then released.
+
+            (1) pixelDragThreshold = 10 (UNITY default)
+            Button looses its pressed down status (subjectively speaking) immediately.
+
+            11:03:03.572 248 Button.OnPointerDown
+            11:03:03.685 257 --> PageScroller.OnBeginDrag
+            11:03:03.685 257 Button.OnPointerUp
+            11:03:03.887 274 --> PageScroller.OnEndDrag
+            11:03:04.301 313 Button.OnPointerExit
+
+            (2) pixelDragThreshold = 57 pixels (3% of screen width 1920)
+            When pointer movement (in pixels) exceeds EventSystem.pixelDragThreshold Button.OnPointerUp event is sent.
+            This happens on frame 773
+            Button looses its pressed down status later because the pixelDragThreshold is larger.
+            While pointer is being dragged, button receives enter and exit messages but does not react to them.
+
+            10:48:22.735 272 Button.OnPointerEnter
+            10:48:24.778 635 Button.OnPointerDown
+
+            10:48:25.550 773 Button.OnPointerExit
+            10:48:25.551 773 --> PageScroller.OnBeginDrag
+            10:48:25.551 773 Button.OnPointerUp
+
+            10:48:25.577 777 Button.OnPointerEnter
+
+            10:48:25.589 779 Button.OnPointerExit
+            10:48:25.595 780 Button.OnPointerEnter
+
+            10:48:25.670 789 Button.OnPointerExit
+            10:48:25.677 790 Button.OnPointerEnter
+
+            ...
+
+            10:48:26.421 915 Button.OnPointerExit
+            10:48:26.427 916 Button.OnPointerEnter
+
+            10:48:26.488 927 Button.OnPointerExit
+            10:48:26.494 928 Button.OnPointerEnter
+
+            10:48:26.614 949 Button.OnPointerExit
+
+            10:48:26.621 950 Button.OnPointerEnter
+            10:48:26.728 969 --> PageScroller.OnEndDrag
+            10:48:26.746 972 Button.OnPointerExit
+         */
+
+        #endregion
+
         #region Variables
 
         /// <summary>

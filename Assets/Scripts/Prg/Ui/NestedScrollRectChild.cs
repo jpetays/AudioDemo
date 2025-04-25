@@ -1,3 +1,4 @@
+using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -5,7 +6,7 @@ using UnityEngine.UI;
 namespace Prg.Ui
 {
     /// <summary>
-    /// Helper to allow nested <c>ScrollRect</c> child to bubble pointer drag events to its <c>ScrollRect</c> parent.<br />
+    /// Helper to allow nested <c>ScrollRect</c> children to bubble pointer drag events to its <c>ScrollRect</c> parent.<br />
     /// Video: https://www.youtube.com/watch?v=eGcW7xYVurM<br />
     /// Asset Store: https://assetstore.unity.com/packages/tools/gui/nested-ui-scroll-view-with-snapping-scrollrect-extension-134131<br />
     /// No support for nesting but newer and maintained:<br />
@@ -15,7 +16,10 @@ namespace Prg.Ui
     public class NestedScrollRectChild : MonoBehaviour,
         IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        [SerializeField] private ScrollRect _parent;
+        private const string Ib =
+            "Helper to allow nested ScrollRect children to bubble pointer drag events to its ScrollRect parent.";
+
+        [SerializeField, InfoBox(Ib)] private ScrollRect _parent;
         [SerializeField] private bool _findParent;
 
         private void Awake()

@@ -1,6 +1,6 @@
+using Prg.Util;
 using Prg.Window.ScriptableObjects;
 using UnityEngine;
-using UnityEngine.Assertions;
 using UnityEngine.SceneManagement;
 #if PHOTON_UNITY_NETWORKING
 using Photon.Pun;
@@ -20,7 +20,7 @@ namespace Prg.Window
 
         public static void LoadScene(WindowDef windowDef)
         {
-            if (windowDef.HasScene &&  windowDef.Scene.IsNetworkScene)
+            if (windowDef.HasScene && windowDef.Scene.IsNetworkScene)
             {
                 Debug.Log($"LOAD NETWORK {windowDef}", windowDef);
 #if PHOTON_UNITY_NETWORKING
@@ -31,7 +31,9 @@ namespace Prg.Window
 #endif
             }
             Debug.Log($"LOAD LOCAL {windowDef}", windowDef);
-            var sceneIndex = windowDef.IsSceneWindow ? windowDef.SceneIndex : FindFirstSceneIndex(windowDef.Scene.SceneName);
+            var sceneIndex = windowDef.IsSceneWindow
+                ? windowDef.SceneIndex
+                : FindFirstSceneIndex(windowDef.Scene.SceneName);
             SceneManager.LoadScene(sceneIndex);
             return;
 
